@@ -1,3 +1,6 @@
+#!/usr/bin/python3
+#-*- coding:utf-8 -*-
+
 import asyncio
 import logging
 import aiomysql# aiomysql是Mysql的python异步驱动程序，操作数据库要用到
@@ -6,7 +9,7 @@ import aiomysql# aiomysql是Mysql的python异步驱动程序，操作数据库�
 
 # 这个函数的作用是输出信息，让你知道这个时间点程序在做什么
 def log(sql, args=()):
-    logging.INFO("SQL语句：%s" % sql)
+    logging.info("SQL sentence：%s" % sql)
 
 
 #======================================创建连接池=============================================
@@ -16,7 +19,7 @@ def log(sql, args=()):
 # 避免了频繁关闭和打开数据库连接
 # 连接池由全局变量__pool存储，缺省情况下将编码设置为utf8，自动提交事务
 async def create_pool(loop, **kw):
-    logging.info("创建数据库连接池。。。")
+    logging.info("create a mysql pool...")
     # 声明变量__pool是一个全局变量，如果不加声明，__pool就会被默认为一个私有变量，不能被其他函数引用
     global __pool
     # 调用一个自协程来创建全局连接池，create_pool的返回值是一个pool实例对象
@@ -28,7 +31,7 @@ async def create_pool(loop, **kw):
         user=kw["user"],  # 登陆用户名，通过关键词参数传进来。
         password=kw["password"],  # 登陆密码，通过关键词参数传进来
         db=kw["db"],  # 当前数据库名
-        charset=kw.get("charset", "utf-8"),  # 设置编码格式，默认为utf-8
+        charset=kw.get("charset", "utf8"),  # 设置编码格式，默认为utf-8
         autocommit=kw.get("autocommit", True),  # 自动提交模式，设置默认开启
         maxsize=kw.get("maxsize", 10),  # 最大连接数默认设为10
         minsize=kw.get("minsize", 1),  # 最小连接数，默认设为1，这样可以保证任何时候都会有一个数据库连接
