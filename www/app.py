@@ -27,7 +27,9 @@ from aiohttp import web
 from jinja2 import Environment, FileSystemLoader
 import orm
 from coroweb import add_routes, add_static
-import handlers
+from handlers import cookie2user, COOKIE_NAME
+from config import configs
+
 
 # 这个函数的功能是初始化jinja2模板，配置jinja2的环境
 def init_jinja2(app,**kw):
@@ -70,74 +72,109 @@ def logger_factory(app, handler):
         return (yield from handler(request))
     return logger
 
-# 只有当请求方法为POST时这个函数才起作用
+# 在处理请求之前,先将cookie解析出来,并将登录用于绑定到request对象上
+# 这样后续的url处理函数就可以直接拿到登录用户
+# 以后的每个请求,都是在这个middle之后处理的,都已经绑定了用户信息
+@asyncio.coroutine
+def auth_factory(app, handler):
+    @asyncio.coroutine
+    def auth(request):
+        logging.info("check user: %s %s" % (request.method, request.path))
+        request.__user__ = None # 先绑定一个None到请求的__user__属性
+        cookie_str = request.cookies.get(COOKIE_NAME) # 通过cookie名取得加密cookie字符串(不明白的看看handlers.py)
+        if cookie_str:
+            user = yield from cookie2user(cookie_str) # 验证cookie,并得到用户信息
+            if user:
+                logging.info("set current user: %s" % user.email)
+                request.__user__ = user  # 将用户信息绑定到请求上
+            # 请求的路径是管理页面,但用户非管理员,将会重定向到登录页面?
+        if request.path.startswith('/manage/') and (request.__user__ is None or not request.__user__.admin):
+            return web.HTTPFound('/signin')
+        return (yield from handler(request))
+    return auth
+
+# 解析数据
 @asyncio.coroutine
 def data_factory(app, handler):
     @asyncio.coroutine
     def parse_data(request):
-        if request.method == 'POST':
-            if request.content_type.startswith('application/json'):
+        # 解析数据是针对post方法传来的数据,若http method非post,将跳过,直接调用handler处理请求
+        if request.method == "POST":
+            # content_type字段表示post的消息主体的类型, 以application/json打头表示消息主体为json
+            # request.json方法,读取消息主题,并以utf-8解码
+            # 将消息主体存入请求的__data__属性
+            if request.content_type.startswith("application/json"):
                 request.__data__ = yield from request.json()
-                logging.info('request json: %s' % str(request.__data__))
-            elif request.content_type.startswith('application/x-www-form-urlencoded'):
+                logging.info("request json: %s" % str(request.__data__))
+            # content type字段以application/x-www-form-urlencodeed打头的,是浏览器表单
+            # request.post方法读取post来的消息主体,即表单信息
+            elif request.content_type.startswith("application/x-www-form-urlencoded"):
                 request.__data__ = yield from request.post()
-                logging.info('request form: %s' % str(request.__data__))
+                logging.info("request form: %s" % str(request.__data__))
+        # 调用传入的handler继续处理请求
         return (yield from handler(request))
     return parse_data
 
-# response这个middleware把返回值转换为web.Response对象再返回，以保证满足aiohttp的要求：
+# 上面factory是在url处理函数之前先对请求进行了处理,以下则在url处理函数之后进行处理
+# 其将request handler的返回值转换为web.Response对象
 @asyncio.coroutine
 def response_factory(app, handler):
     @asyncio.coroutine
     def response(request):
-        logging.info('Response handler...')
+        logging.info("Response handler...")
+        # 调用handler来处理url请求,并返回响应结果
         r = yield from handler(request)
-        # 如果相应结果为StreamResponse，直接返回treamResponse是aiohttp定义response的基类,
-        # 即所有响应类型都继承自该类StreamResponse主要为流式数据而设计
+        # 若响应结果为StreamResponse,直接返回
+        # StreamResponse是aiohttp定义response的基类,即所有响应类型都继承自该类
+        # StreamResponse主要为流式数据而设计
         if isinstance(r, web.StreamResponse):
             return r
-        # 如果相应结果为字节流，则将其作为应答的body部分，并设置响应类型为流型
+        # 若响应结果为字节流,则将其作为应答的body部分,并设置响应类型为流型
         if isinstance(r, bytes):
-            resp = web.Response(body = r)
-            resp.content_type = 'application/octet-stream'
+            resp = web.Response(body=r)
+            resp.content_type = "application/octet-stream"
             return resp
-        # 如果响应结果为字符串
+        # 若响应结果为字符串
         if isinstance(r, str):
-            # 判断响应结果是否为重定向，如果是，返回重定向后的结果
-            if r.startswith('redirect:'):
-                return web.HTTPFound(r[9:])  # 即把r字符串之前的"redirect:"去掉
-            # 然后以utf8对其编码，并设置响应类型为html型
-            resp = web.Response(body = r.encode('utf-8'))
-            resp.content_type = 'text/html;charset=utf-8'
+            # 判断响应结果是否为重定向.若是,则返回重定向的地址
+            if r.startswith("redirect:"):
+                return web.HTTPFound(r[9:])
+            # 响应结果不是重定向,则以utf-8对字符串进行编码,作为body.设置相应的响应类型
+            resp = web.Response(body = r.encode("utf-8"))
+            resp.content_type = "text/html;charset=utf-8"
             return resp
-        # 如果响应结果是字典，则获取他的jinja2模板信息，此处为jinja2.env
+        # 若响应结果为字典,则获取它的模板属性,此处为jinja2.env(见init_jinja2)
         if isinstance(r, dict):
-            template = r.get('__template__')
-            # 若不存在对应模板，则将字典调整为json格式返回，并设置响应类型为json
+            template = r.get("__template__")
+            # 若不存在对应模板,则将字典调整为json格式返回,并设置响应类型为json
             if template is None:
-                resp = web.Response(body = json.dumps(r, ensure_ascii = False, default = lambda o: o.__dict__).encode('utf-8'))
-                resp.content_type = 'application/json;charset=utf-8'
+                resp = web.Response(body=json.dumps(r, ensure_ascii=False, default=lambda o: o.__dict__).encode("utf-8"))
+                resp.content_type = "application/json;charset=utf-8"
                 return resp
+            # 存在对应模板的,则将套用模板,用request handler的结果进行渲染
             else:
-                resp = web.Response(body = app['__templating__'].get_template(template).render(**r).encode('utf-8'))
-                resp.content_type = 'text/html;charset=utf-8'
+                r["__user__"] = request.__user__  # 增加__user__,前端页面将依次来决定是否显示评论框
+                resp = web.Response(body=app["__templating__"].get_template(template).render(**r).encode("utf-8"))
+                resp.content_type = "text/html;charset=utf-8"
                 return resp
-        # 如果响应结果为整数型，且在100和600之间
-        # 则此时r为状态码，即404，500等
-        if isinstance(r, int) and r >= 100 and r < 600:
-            return web.Response(r)
-        # 如果响应结果为长度为2的元组
-        # 元组第一个值为整数型且在100和600之间
-        # 则t为http状态码，m为错误描述，返回状态码和错误描述
+        # 若响应结果为整型的
+        # 此时r为状态码,即404,500等
+        if isinstance(r, int) and r >= 100 and r<600:
+            return web.Response
+        # 若响应结果为元组,并且长度为2
         if isinstance(r, tuple) and len(r) == 2:
             t, m = r
-            if isinstance(t, int) and t >= 100 and t < 600:
+            # t为http状态码,m为错误描述
+            # 判断t是否满足100~600的条件
+            if isinstance(t, int) and t>= 100 and t < 600:
+                # 返回状态码与错误描述
                 return web.Response(t, str(m))
-        # 默认以字符串形式返回响应结果，设置类型为普通文本
-        resp = web.Response(body=str(r).encode('utf-8'))
-        resp.content_type = 'text/plain;charset=utf-8'
+        # 默认以字符串形式返回响应结果,设置类型为普通文本
+        resp = web.Response(body=str(r).encode("utf-8"))
+        resp.content_type = "text/plain;charset=utf-8"
         return resp
     return response
+
 
 # 时间过滤器，作用是返回日志创建的时间，用于显示在日志标题下面
 def datetime_filter(t):
@@ -159,12 +196,11 @@ def datetime_filter(t):
 @asyncio.coroutine
 def init(loop):
     # 创建数据库连接池
-    yield from orm.create_pool(loop = loop, host = '127.0.0.1', port = 3306, \
-        user = 'root', password = '12125772', db = 'awesome')
+    yield from orm.create_pool(loop = loop, **configs.db)
     # middleware是一种拦截器，一个URL在被某个函数处理前，可以经过一系列的middleware的处理。
     # 一个middleware可以改变URL的输入、输出，甚至可以决定不继续处理而直接返回。
     # middleware的用处就在于把通用的功能从每个URL处理函数中拿出来，集中放到一个地方。
-    app = web.Application(loop = loop, middlewares = [logger_factory, response_factory])
+    app = web.Application(loop = loop, middlewares = [logger_factory, auth_factory, response_factory])
     # 初始化jinja2模板，并传入时间过滤器
     init_jinja2(app, filters = dict(datetime = datetime_filter))
     # 下面这两个函数在coroweb模块中

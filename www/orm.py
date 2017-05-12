@@ -11,7 +11,7 @@
 
 import asyncio
 import logging
-import aiomysql# aiomysql是Mysql的python异步驱动程序
+import aiomysql     # aiomysql是Mysql的python异步驱动程序
 
 
 # 这个函数的作用是输出信息，让你知道这个时间点程序在做什么
@@ -30,7 +30,7 @@ def create_pool(loop, **kw):
     logging.info("create a database connection pool...")
     # 声明变量__pool是一个全局变量，如果不加声明，__pool就会被默认为一个私有变量，不能被其他函数引用
     global __pool
-    # 调用一个自协程来创建全局连接池，create_pool的返回值是一个pool实例对象
+    # 调用一个子协程来创建全局连接池，create_pool的返回值是一个pool实例对象
     __pool = yield from aiomysql.create_pool(
         # 下面就是创建数据库连接需要用到的一些参数，从**kw（关键字参数）中取出来
         # kw.get的作用应该是，当没有传入参数是，默认参数就是get函数的第二项
@@ -74,10 +74,9 @@ def select(sql, args, size = None):
         logging.info("rows returned：%s" % len(rs))
         return rs                                   # 返回结果集
 
-# 定义execute()函数执行insert update delete语句
+# execute()函数只返回结果数，不返回结果集，适用于insert, update这些语句
 @asyncio.coroutine
 def execute(sql, args):
-    # execute()函数只返回结果数，不返回结果集，适用于insert, update这些语句
     log(sql)
     with (yield from __pool) as conn:
         try:
@@ -120,24 +119,20 @@ class StringField(Field):
     def __init__(self, name=None, primary_key=False, default=None, ddl="varchar(100)"):
         super().__init__(name, ddl, primary_key, default)
 
-
 # 整数域
 class IntegerField(Field):
     def __init__(self, name=None, primary_key=False, default=0):
         super().__init__(name, "bigint", primary_key, default)
-
 
 # 布尔数域
 class BooleanField(Field):
     def __init__(self, name=None, primary_key=False, default=False):
         super().__init__(name, "boolean", primary_key, default)
 
-
 # 浮点数域
 class FloatField(Field):
     def __init__(self, name=None, primary_key=False, default=0.0):
         super().__init__(name, "real", primary_key, default)
-
 
 # 文本域
 class TextField(Field):
@@ -147,19 +142,23 @@ class TextField(Field):
 
 # =====================================ModelMetaclass==========================================
 
-# 编写元类
+# 编写元类，任何定义了__metaclass__属性或指定了metaclass的都会通过元类定义的构造方法构造类
 class ModelMetaclass(type):
+    # cls: 当前准备创建的类对象,相当于self
+    # name: 类名,比如User继承自Model,当使用该元类创建User类时,name=User
+    # bases: 父类的元组
+    # attrs: 属性(方法)的字典,比如User有__table__,id,等,就作为attrs的keys
     def __new__(cls, name, bases, attrs):
-        # 排除Model类本身
+        # 排除Model类本身,因为Model类主要就是用来被继承的,其不存在与数据库表的映射
         if name == "Model":
             return type.__new__(cls, name, bases, attrs)
         # 获取table名称
         tableName = attrs.get("__table__", None) or name
         logging.info("found Model:%s (table:%s" % (name, tableName))
         # 获取所有定义域中的属性和主键
-        mappings = dict()
-        fields = []
-        primaryKey = None
+        mappings = dict()       # 用字典来储存类属性与数据库表的列的映射关系
+        fields = []             # 用于保存除主键外的属性
+        primaryKey = None       # 用于保存主键
         for k, v in attrs.items():
             if isinstance(v, Field):
                 logging.info("found mapping：%s ==> %s" % (k, v))
@@ -289,7 +288,6 @@ class Model(dict, metaclass = ModelMetaclass):
         if len(rs) == 0:
             return None
         return rs[0]['_num_']       #   &&----------------------------
-
 
     # save、update、remove这三个方法需要管理员权限才能操作，所以不定义为类方法，需要创建实例之后才能调用
     
