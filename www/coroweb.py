@@ -50,8 +50,9 @@ def post(path):
 def get_required_kw_args(fn):
     args = []
     params = inspect.signature(fn).parameters
-    for name, param in params.items():
-        if param.kind == inspect.Parameter.KEYWORD_ONLY and param.default == inspect.Parameter.empty:
+    for name, param in params.items():       
+        if param.kind == inspect.Parameter.KEYWORD_ONLY \
+        and param.default == inspect.Parameter.empty:
             args.append(name)
     return tuple(args)
 
@@ -90,7 +91,8 @@ def has_request_arg(fn):
             continue  # 下面的代码不执行，直接进入下一个循环
         # 如果找到了request参数，又找到了其他参数是POSITIONAL_OR_KEYWORD（不是VAR_POSITIONAL、KEYWORD_ONLY、VAR_KEYWORD参数）
         # request参数必须是最后一个位置和关键词参数
-        if found and (param.kind != inspect.Parameter.VAR_POSITIONAL and param.kind != inspect.Parameter.KEYWORD_ONLY and param.kind != inspect.Parameter.VAR_KEYWORD):
+        if found and (param.kind != inspect.Parameter.VAR_POSITIONAL and param.kind != \
+            inspect.Parameter.KEYWORD_ONLY and param.kind != inspect.Parameter.VAR_KEYWORD):
             raise ValueError('request parameter must be the last named parameter in function: %s%s' % (fn.__name__, str(sig)))
     return found
 
@@ -113,7 +115,6 @@ class RequestHandler(object):
         self._required_kw_args = get_required_kw_args(fn)
 
     # 定义__call__参数后，其实例可以被视为函数
-    # 此处参数为request
     @asyncio.coroutine
     def __call__(self, request):
         kw = None  #假设不存在关键字参数
@@ -192,9 +193,6 @@ class RequestHandler(object):
                 if not name in kw:
                     return web.HTTPBadRequest("Missing argument: %s" % name)
         # 以上过程即为从request中获得必要的参数，并组成kw
-        # kw的建立过程比较繁琐，我做了一张思维导图，详见本目录下RequestHandler.png
-
-
         # 以下调用handler处理，并返回response
         logging.info("call with args: %s" % str(kw))
         try:
@@ -225,7 +223,8 @@ def add_route(app, fn):
     # 如果函数fn不是一个协程或者生成器，就把这个函数编程协程
     if not asyncio.iscoroutinefunction(fn) and not inspect.isgeneratorfunction(fn):
         fn = asyncio.coroutine(fn)
-    logging.info('add route %s %s => %s(%s)' % (method, path, fn.__name__, ', '.join(inspect.signature(fn).parameters.keys())))
+    logging.info('add route %s %s => %s(%s)' % (method, path, fn.__name__, \
+        ', '.join(inspect.signature(fn).parameters.keys())))
     app.router.add_route(method, path, RequestHandler(app, fn))  # 注册request handler
 
 # 将handlers模块中所有请求处理函数提取出来交给add_route自动去处理
