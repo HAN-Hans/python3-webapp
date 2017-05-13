@@ -3,7 +3,7 @@
 
 __author__ = 'Justin Han'
 '''
-    由于这个Web App建立在asyncio的基础上，
+    这个Web App建立在asyncio的基础上，
     使用Jinja2模板引擎渲染前端模板，
     所有数据储存在MySQL，利用aiomysql实现异步驱动
     因此用aiohttp写一个基本的app.py，包含日志、用户和评论
@@ -12,7 +12,10 @@ __author__ = 'Justin Han'
 # logging模块是对应用程序或库实现一个灵活的事件日志处理系统
 # 日志级别大小关系为：CRITICAL > ERROR > WARNING > INFO > DEBUG > NOTSET
 # 用basiconfig()函数设置logging的默认level为INFO
-import logging; logging.basicConfig(level=logging.INFO)
+import logging
+logging.basicConfig(level=logging.INFO,
+    format="%(asctime)s %(message)s",  # display date
+    datefmt="[%Y-%m-%d %H:%M:%S]")
 # asyncio实现单线程异步IO,一处异步，处处异步
 # os提供调用操作系统的接口函数
 # json提供python对象到Json的转换
@@ -213,7 +216,7 @@ def init(loop):
 
 
 # asyncio的编程模块实际上就是一个消息循环。我们从asyncio模块中直接获取一个eventloop（事件循环）的引用，
-# 然后把需要执行的协程扔到eventloop中执行，就实现了异步IO
+# @asyncio.coroutine把一个generator标记为coroutine类型，然后，我们就把这个coroutine扔到EventLoop中执行
 
 # 第一步是获取eventloop
 # get_event_loop() => 获取当前脚本下的事件循环，返回一个event loop对象(这个对象的类型是
