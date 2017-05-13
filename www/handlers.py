@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-''
-
-__author__ = 'Engine'
 
 import time, re, json, logging, hashlib, base64, asyncio, markdown2
 from aiohttp import web
