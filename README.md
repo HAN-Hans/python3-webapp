@@ -6,9 +6,7 @@ Asesome Pyhthon3 WebApp 项目回顾与总结
 
 ## #引言
 
-这个项目是大概花了一个多月时间完成的，代码几乎全是参考[实战](http://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/001432170876125c96f6cc10717484baea0c6da9bee2be4000) 自己一个一个敲出来的. 期间我查阅了许多[资料](#reference), 几乎为每一行代码自己都加了比较详细的注释。这样能够在自己理解python-webapp源代码的同时，加深对python基础语法的理解。暂时这个个人博客还没有部署在服务器上，我打算在学习完前端知识后将前端页面修改好后再部署到服务器上。
-
-
+这个项目是大概花了一个多月时间完成的，代码几乎全是参考[实战](http://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/001432170876125c96f6cc10717484baea0c6da9bee2be4000) 自己一个一个敲出来的。期间我查阅了许多[资料](#reference), 几乎为每一行代码自己都加了比较详细的注释。这样能够在自己理解python-webapp源代码的同时，加深对python基础语法的理解。暂时这个个人博客还没有部署在服务器上，我打算在学习完前端知识后将前端页面修改好后再部署到服务器上。
 
 > 注：本项目源代码与[Python3教程](http://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000)代码基本一样，主要是在代码中间注释中添加自己对代码的理解
 
@@ -17,8 +15,10 @@ Asesome Pyhthon3 WebApp 项目回顾与总结
 ***开发环境***
 
 * python版本：python3.6.1		
-* 异步框架：aiohttp
-* 前端模板引擎:jinja2
+* 异步框架：[asyncio](https://docs.python.org/3/library/asyncio.html)
+	* [aiohttp](http://aiohttp.readthedocs.org/en/stable/web.html)
+	* [aiomysql](http://aiomysql.readthedocs.io/en/latest/index.html)
+* 前端模板引擎：[jinja2](http://jinja.pocoo.org/docs/latest/)
 * 数据库：MySQL5.6
 
 ***项目结构***
@@ -44,7 +44,7 @@ Asesome Pyhthon3 WebApp 项目回顾与总结
 其中我们的代码主要是放在/www/文件夹中
 
 	www				<-- Web目录
-	│  apis.py			<-- api异常和分页类定义
+	│  apis.py			<-- api异常和分页定义
 	│  app.py			<-- Webapp主程序
 	│  config.py			<-- 配置文件
 	│  config_default.py		<-- 默认的配置文件
@@ -64,11 +64,12 @@ Asesome Pyhthon3 WebApp 项目回顾与总结
 
 <p id="reference"></p>
 
-- [e-satis在stackoverflow上的回答](http://stackoverflow.com/questions/100003/what-is-a-metaclass-in-python/6581949#6581949)
-- [aiohttp官方文档](http://aiohttp.readthedocs.org/en/stable/web.html)
-- [aiomysql官方文档](http://aiomysql.readthedocs.io/en/latest/index.html)
-- [jinja2官方文档](http://jinja.pocoo.org/docs/latest/)
+***[stackoverflow python](http://stackoverflow.com/questions/tagged/python?page=2&sort=votes&pagesize=15)***
 
+- [What is a metaclass in Python?](http://stackoverflow.com/questions/100003/what-is-a-metaclass-in-python)
+- [What is the difference between @staticmethod and @classmethod in Python?](http://stackoverflow.com/questions/136097/what-is-the-difference-between-staticmethod-and-classmethod-in-python)
+- [What does the “yield” keyword do in Python?](http://stackoverflow.com/questions/231767/what-does-the-yield-keyword-do-in-python)
+- [In practice, what are the main uses for the new “yield from” syntax in Python 3.3?](http://stackoverflow.com/questions/9708902/in-practice-what-are-the-main-uses-for-the-new-yield-from-syntax-in-python-3)
 
 
 参考：[Python3教程](http://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000)
