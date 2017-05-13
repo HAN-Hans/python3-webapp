@@ -184,5 +184,5 @@ rows returned：1
 - [In practice, what are the main uses for the new “yield from” syntax in Python 3.3?](http://stackoverflow.com/questions/9708902/in-practice-what-are-the-main-uses-for-the-new-yield-from-syntax-in-python-3)
 
 【参考教程】：
-[Python3教程](http://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000)
-[python官方手册](https://docs.python.org/3/tutorial/index.html)
+【[Python3教程](http://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000)】
+【[python官方手册](https://docs.python.org/3/tutorial/index.html)】
