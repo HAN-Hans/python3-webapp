@@ -130,7 +130,7 @@ server started at http://127.0.0.1:9000...
 ```
 由日志可知, 服务器启动之后进行了以下初始化操作:
 
-1. [Monitor]日志是用来记录文件修改情况的，通过系统API监控相关文件是否改动，若有文件修改就会自动重启进程，能够有效避免修改代码后重复手动执行
+1. **记录文件更改情况**，通过系统API监控相关文件是否改动，若有文件修改就会自动重启进程，能够有效避免修改代码后重复手动执行
 
 ```
 [Monitor] python source file changed: D:\python3-webapp\www\pymonitor.py
@@ -163,7 +163,6 @@ rows returned：1
 SQL sentence：select `id`, `user_id`,`user_name`,`user_image`,`name`,`summary`,`content`,`created_at` from `blogs` limit ?,?
 rows returned：1
 ```
-
 
 仔细看, 你会发现, 从上到下的过程就是一个实现`MVC`模型的过程: `建立model` -> `构建前端视图` -> `注册处理控制`. 
 
