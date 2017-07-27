@@ -37,7 +37,7 @@ def kill_process():
 		log('Kill process [%s]...' % process.pid)
 		# process指向一个Popen对象,在start_process函数中被创建
         # 通过发送一个SIGKILL给子程序, 来杀死子程序. SIGKILL信号将不会储存数据, 此处也不需要
-        # wait(timeout=None),等待进程终止,并返回一个结果码. 
+        # wait(timeout=None),等待进程终止,并返回一个结果码.
 		process.kill()
 		process.wait()
 		log('Process ended with code %s' % process.returncode)
@@ -47,8 +47,9 @@ def start_process():
 	global process, command
 	log('Start process %s...' % ' '.join(command))
 	# subprocess.Popen是一个构造器, 它将在一个新的进程中执行子程序
-    # command是一个list, 即sequence. 此时, 将被执行的程序应为序列的第一个元素, 此处为python
-	process = subprocess.Popen(command, stdin = sys.stdin, stdout = sys.stdout, stderr = sys.stderr)
+    # command是一个list, 即sequence.将被执行的程序应为序列的第一个元素, 此处为python
+	process = subprocess.Popen(command, stdin = sys.stdin, stdout = sys.stdout,
+	 						   stderr = sys.stderr)
 
 def restart_process():
 	kill_process()
@@ -59,7 +60,8 @@ def start_watch(path, callback):
 	# 为监视器对象安排时间表, 即将处理器, 路径注册到监视器对象上
     # 重启进程函数绑定到处理器的restart属性上
     # recursive=True表示递归, 即当前目录的子目录也在被监视范围内
-	observer.schedule(MyFileSystemEventHander(restart_process), path, recursive = True)
+	observer.schedule(MyFileSystemEventHander(restart_process),
+					  path, recursive = True)
 	observer.start()		# 启动监视器
 	log('Watch directory %s...' % path)
     # 启动进程, 通过调用subprocess.Popen方法启动一个python3子程序的进程
@@ -81,5 +83,3 @@ if __name__ == '__main__':
 	command = argv	# 将输入参数赋给command, 之后将用command构建shell命令
 	path = os.path.abspath('.')	# 获取当前目录的绝对路径表示.'.'表示当前目录
 	start_watch(path, None)
-
-

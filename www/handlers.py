@@ -4,20 +4,22 @@
 
 import time, re, json, logging, hashlib, base64, asyncio, markdown2
 from aiohttp import web
-from coroweb import get, post 
+from coroweb import get, post
 from models import User, Comment, Blog, next_id
-from apis import APIResourceNotFoundError, APIValueError, APIError, APIPermissionError, Page
+from apis import APIResourceNotFoundError, APIValueError, APIError,\
+                 APIPermissionError, Page
 from config import configs
 
 
 # 此处所列所有的handler都会在app.py中通过add_routes自动注册到app.router上
 # 因此,在此脚本尽情地书写request handler即可
 
-COOKIE_NAME = 'awesession'             # cookie名,用于设置cookie
-_COOKIE_KEY = configs.session.secret   # cookie密钥,作为加密cookie的原始字符串的一部分
+COOKIE_NAME = 'awesession'           # cookie名,用于设置cookie
+_COOKIE_KEY = configs.session.secret # cookie密钥,作为加密cookie的原始字符串的一部分
 
 # 匹配邮箱与加密后密码的证得表达式
-_RE_EMAIL = re.compile(r'^[a-z0-9\.\-\_]+\@[a-z0-9\-\_]+(\.[a-z0-9\-\_]+){1,4}$')
+_RE_EMAIL = re.compile(
+    r'^[a-zA-Z0-9\.\-\_]+\@[a-z0-9\-\_]+(\.[a-z0-9\-\_]+){1,4}$')
 _RE_SHA1 = re.compile(r'[0-9a-f]{40}$')
 
 # 验证用户身份
@@ -44,19 +46,22 @@ def text2html(text):
     '''文本转html'''
     # 先用filter函数对输入的文本进行过滤处理: 断行,去首尾空白字符
     # 再用map函数对特殊符号进行转换,在将字符串装入html的<p>标签中
-    lines = map(lambda s: '<p>%s</p>' % s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'), filter(lambda s: s.strip() != '', text.split('\n')))
+    lines = map(lambda s: '<p>%s</p>' % \
+            s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'),\
+        filter(lambda s: s.strip() != '', text.split('\n')))
     # lines是一个字符串列表,将其组装成一个字符串,该字符串即表示html的段落
     return ''.join(lines)
 
 # 通过用户信息计算加密cookie
 def user2cookie(user, max_age):
     '''Generate cookie str by user.'''
-    # build cookie string by: id-expires-sha1
-    expires = str(int(time.time() + max_age)) # expires(失效时间)是当前时间加上cookie最大存活时间的字符串
+    # expires(失效时间)是当前时间加上cookie最大存活时间的字符串
+    expires = str(int(time.time() + max_age))
     # 利用用户id,加密后的密码,失效时间,加上cookie密钥,组合成待加密的原始字符串
     s = "%s-%s-%s-%s" % (user.id, user.passwd, expires, _COOKIE_KEY)
     # 生成加密的字符串,并与用户id,失效时间共同组成cookie
     L = [user.id, expires, hashlib.sha1(s.encode("utf-8")).hexdigest()]
+    # build cookie string by: id-expires-sha1
     return "-".join(L)
 
 # 解密cookie
@@ -72,7 +77,7 @@ def cookie2user(cookie_str):
         if len(L) != 3: # 由上可知,cookie由3部分组成,若拆分得到不是3部分,显然出错了
             return None
         uid, expires, sha1 = L
-        if int(expires) < time.time(): # 时间是浮点表示的时间戳,一直在增大.因此失效时间小于当前时间,说明cookie已失效
+        if int(expires) < time.time(): # 失效时间小于当前时间,说明cookie已失效
             return None
         user = yield from User.find(uid)  # 在拆分得到的id在数据库中查找用户信息
         if user is None:
@@ -86,7 +91,7 @@ def cookie2user(cookie_str):
         # 以上就完成了cookie的验证,过程非常简单,但个人认为效率不高
         # 验证cookie,就是为了验证当前用户是否仍登录着,从而使用户不必重新登录
         # 因此,返回用户信息即可
-        user.passwd = "*****"
+        user.passwd = "******"
         return user
     except Exception as e:
         logging.exception(e)
@@ -101,7 +106,8 @@ def index(*, page="1"):
     if num == 0:
         blogs = []
     else:
-        blogs = yield from Blog.findAll(orderBy = "created_at desc", limit=(page.offset, page.limit))
+        blogs = yield from Blog.findAll(
+            orderBy = "created_at desc", limit=(page.offset, page.limit))
     # 返回一个字典, 其指示了使用何种模板,模板的内容
     # app.py的response_factory将会对handler的返回值进行分类处理
     return {
@@ -142,11 +148,13 @@ def signout(request):
 def get_blog(id):
     blog = yield from Blog.find(id) # 通过id从数据库拉取博客信息
     # 从数据库拉取指定blog的全部评论,按时间降序排序,即最新的排在最前
-    comments = yield from Comment.findAll('blog_id=?', [id], orderBy='created_at desc')
+    comments = yield from Comment.findAll(
+        'blog_id=?', [id], orderBy='created_at desc')
     # 将每条评论都转化为html格式(根据text2html代码可知,实际为html的<p>)
     for c in comments:
         c.html_content = text2html(c.content)
-    blog.html_content = markdown2.markdown(blog.content) # blog是markdown格式,将其转换为html格式
+    # blog是markdown格式,将其转换为html格式
+    blog.html_content = markdown2.markdown(blog.content)
     return {
         # 返回的参数将在jinja2模板中被解析
         "__template__": "blog.html",
@@ -230,32 +238,35 @@ def api_register_user(*,name, email, passwd): # 注册信息包括用户名,邮�
     if not passwd or not _RE_SHA1.match(passwd):
         raise APIValueError("passwd")
     # 在数据库里查看是否已存在该email
-    users = yield from User.findAll('email=?', [email]) # mysql parameters are listed in list
+    users = yield from User.findAll('email=?', [email])
     if len(users) > 0: # findAll的结果不为0,说明数据库已存在同名email,抛出异常报错
         raise APIError('register:failed', 'email', 'Email is already in use.')
 
     # 数据库内无相应的email信息,说明是第一次注册
     uid = next_id() # 利用当前时间与随机生成的uuid生成user id
-    sha1_passwd = '%s:%s' % (uid, passwd) # 将user id与密码的组合赋给sha1_passwd变量
+    sha1_passwd = '%s:%s' % (uid, passwd) # 将user、id与密码的组合赋给sha1_passwd
     # 创建用户对象, 其中密码并不是用户输入的密码,而是经过复杂处理后的保密字符串
     # unicode对象在进行哈希运算之前必须先编码
-    # sha1(secure hash algorithm),是一种不可逆的安全算法.这在一定程度上保证了安全性,因为用户密码只有用户一个人知道
-    # hexdigest()函数将hash对象转换成16进制表示的字符串
-    # md5是另一种安全算法
-    # Gravatar(Globally Recognized Avatar)是一项用于提供在全球范围内使用的头像服务。只要在Gravatar的服务器上上传了你自己的头像，便可以在其他任何支持Gravatar的博客、论坛等地方使用它。此处image就是一个根据用户email生成的头像
-    user = User(id=uid, name=name.strip(), email=email, passwd=hashlib.sha1(sha1_passwd.encode('utf-8')).hexdigest(), image="http://www.gravatar.com/avatar/%s?d=mm&s=120" % hashlib.md5(email.encode('utf-8')).hexdigest())
-    yield from user.save() # 将用户信息储存到数据库中,save()方法封装的实际是数据库的insert操作
-
+    # sha1()是一种不可逆的安全算法.这在一定程度上保证了安全性,因为用户密码只有用户一个人知道
+    # hexdigest()函数将hash对象转换成16进制表示的字符串，md5是另一种安全算法
+    # Gravatar(Globally Recognized Avatar)是一项用于提供在全球范围内使用的头像服务。
+    # 只要在Gravatar的服务器上上传了你自己的头像，便可以在其他任何支持Gravatar的博客、
+    # 论坛等地方使用它。此处image就是一个根据用户email生成的头像
+    user = User(id=uid, name=name.strip(), email=email,
+                passwd=hashlib.sha1(sha1_passwd.encode('utf-8')).hexdigest(),
+                image="http://www.gravatar.com/avatar/%s?d=mm&s=120" % \
+                    hashlib.md5(email.encode('utf-8')).hexdigest())
+    yield from user.save() # 将用户信息储存到数据库中
     # 这其实还是一个handler,因此需要返回response. 此时返回的response是带有cookie的响应
     r = web.Response()
     # 刚创建的的用户设置cookiei(网站为了辨别用户身份而储存在用户本地终端的数据)
     # http协议是一种无状态的协议,即服务器并不知道用户上一次做了什么.
     # 因此服务器可以通过设置或读取Cookies中包含信息,借此维护用户跟服务器会话中的状态
-    # user2cookie设置的是cookie的值
-    # max_age是cookie的最大存活周期,单位是秒.当时间结束时,客户端将抛弃该cookie.之后需要重新登录
-    r.set_cookie(COOKIE_NAME, user2cookie(user, 600), max_age=600, httponly=True)  # 设置cookie最大存会时间为10min
-    # r.set_cookie(COOKIE_NAME, user2cookie(user, 86400), max_age=86400, httponly=True)  #86400s=24h
-    user.passwd = '*****' # 修改密码的外部显示为*
+    # user2cookie设置的是cookie的值,max_age是cookie的最大存活周期,单位是秒
+    # 当时间结束时,客户端将抛弃该cookie.之后需要重新登录
+    r.set_cookie(COOKIE_NAME, user2cookie(user, 600),
+                 max_age=600, httponly=True)  # 设置cookie最大存会时间为10min
+    user.passwd = '******' # 修改密码的外部显示为*
     # 设置content_type,将在data_factory中间件中继续处理
     r.content_type = 'application/json'
     # json.dumps方法将对象序列化为json格式
@@ -270,14 +281,12 @@ def authenticate(*, email, passwd): # 通过邮箱与密码验证登录
         raise APIValueError("email", "Invalid email")
     if not passwd:
         raise APIValueError("passwd", "Invalid password")
-    users = yield from User.findAll("email=?", [email]) # 在数据库中查找email,将以list形式返回
+    users = yield from User.findAll("email=?", [email]) # 在数据库中查找email
     if len(users) == 0: # 查询结果为空,即数据库中没有相应的email记录,说明用户不存在
         raise APIValueError("email", "Email not exits")
     user = users[0] # 取得用户记录.事实上,就只有一条用户记录,只不过返回的是list
-    # 验证密码
-    # 数据库中存储的并非原始的用户密码,而是加密的字符串
-    # 我们对此时用户输入的密码做相同的加密操作,将结果与数据库中储存的密码比较,来验证密码的正确性
-    # 以下步骤合成为一步就是:sha1 = hashlib.sha1((user.id+":"+passwd).encode("utf-8"))
+    # 验证密码,数据库中存储的并非原始的用户密码,而是加密的字符串
+    # 对此时用户输入的密码做相同的加密操作,将结果与数据库中储存的密码比较,来验证密码的正确性
     # 对照用户时对原始密码的操作(见api_register_user),操作完全一样
     sha1 = hashlib.sha1()
     sha1.update(user.id.encode("utf-8"))
@@ -287,10 +296,9 @@ def authenticate(*, email, passwd): # 通过邮箱与密码验证登录
         raise APIValueError("passwd", "Invalid password")
     # 用户登录之后,同样的设置一个cookie,与注册用户部分的代码完全一样
     r = web.Response()
-    r.set_cookie(COOKIE_NAME, user2cookie(user, 600), max_age=600, httponly=True)
-    # r.set_cookie(COOKIE_NAME, user2cookie(user, 86400), max_age=86400, httponly=True)
-    # r.set_cookie(COOKIE_NAME, user2cookie(user, 600), max_age=600, httponly=True)
-    user.passwd = "*****"
+    r.set_cookie(COOKIE_NAME, user2cookie(user, 600),
+                 max_age=600, httponly=True)
+    user.passwd = "******"
     r.content_type = "application/json"
     r.body = json.dumps(user, ensure_ascii=False).encode("utf-8")
     return r
@@ -301,11 +309,13 @@ def api_blogs(*, page='1'):
     page_index = get_page_index(page)
     num = yield from Blog.findNumber('count(id)')  # num为博客总数
     p = Page(num, page_index) # 创建page对象
+    # 若博客数为0,返回字典,将被app.py的response中间件再处理
     if num == 0:
-        return dict(page=p, blogs=())  # 若博客数为0,返回字典,将被app.py的response中间件再处理
+        return dict(page=p, blogs=())
     # 博客总数不为0,则从数据库中抓取博客
     # limit强制select语句返回指定的记录数,前一个参数为偏移量,后一个参数为记录的最大数目
-    blogs = yield from Blog.findAll(orderBy="created_at desc", limit=(p.offset, p.limit))
+    blogs = yield from Blog.findAll(orderBy="created_at desc",
+                                    limit=(p.offset, p.limit))
     return dict(page=p, blogs=blogs)  # 返回字典,以供response中间件处理
 
 # API: 获取单条日志
@@ -326,7 +336,12 @@ def api_create_blog(request, *, name, summary, content):
     if not content or not content.strip():
         raise APIValueError("content", "content cannot be empty")
     # 创建博客对象
-    blog = Blog(user_id=request.__user__.id, user_name=request.__user__.name, user_image=request.__user__.image, name=name.strip(),summary=summary.strip(), content=content.strip())
+    blog = Blog(user_id=request.__user__.id,
+                user_name=request.__user__.name,
+                user_image=request.__user__.image,
+                name=name.strip(),
+                summary=summary.strip(),
+                content=content.strip())
     yield from blog.save() # 储存博客入数据库
     return blog # 返回博客信息
 
@@ -364,11 +379,13 @@ def api_comments(*, page="1"):
     page_index = get_page_index(page)
     num = yield from Comment.findNumber('count(id)')  # num为评论总数
     p = Page(num, page_index) # 创建page对象, 保存页面信息
+    # 若评论数0,返回字典,将被app.py的response中间件再处理
     if num == 0:
-        return dict(page=p, comments=())  # 若评论数0,返回字典,将被app.py的response中间件再处理
+        return dict(page=p, comments=())
     # 博客总数不为0,则从数据库中抓取博客
     # limit强制select语句返回指定的记录数,前一个参数为偏移量,后一个参数为记录的最大数目
-    comments = yield from Comment.findAll(orderBy="created_at desc", limit=(p.offset, p.limit))
+    comments = yield from Comment.findAll(orderBy="created_at desc",
+                                          limit=(p.offset, p.limit))
     return dict(page=p, comments=comments)  # 返回字典,以供response中间件处理
 
 # API: 创建评论
@@ -385,7 +402,11 @@ def api_create_comment(id, request,  *, content):
     if blog is None:
         raise APIResourceNotFoundError("Blog", "No such a blog.")
     # 创建评论对象
-    comment = Comment(user_id=user.id, user_name=user.name, user_image=user.image, blog_id = blog.id, content=content.strip())
+    comment = Comment(user_id=user.id,
+                      user_name=user.name,
+                      user_image=user.image,
+                      blog_id = blog.id,
+                      content=content.strip())
     yield from comment.save() # 储存评论入数据库
     return comment # 返回评论
 

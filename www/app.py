@@ -1,7 +1,6 @@
 # !/usr/bin/python
 # -*- coding:utf-8 -*-
 
-__author__ = 'Justin Han'
 '''
     这个Web App建立在asyncio的基础上，
     使用Jinja2模板引擎渲染前端模板，
@@ -9,13 +8,13 @@ __author__ = 'Justin Han'
     因此用aiohttp写一个基本的app.py，包含日志、用户和评论
 '''
 
+__author__ = 'Justin Han'
+
 # logging模块是对应用程序或库实现一个灵活的事件日志处理系统
 # 日志级别大小关系为：CRITICAL > ERROR > WARNING > INFO > DEBUG > NOTSET
 # 用basiconfig()函数设置logging的默认level为INFO
 import logging
-logging.basicConfig(level=logging.INFO,
-    format="%(asctime)s %(message)s",  # display date
-    datefmt="[%Y-%m-%d %H:%M:%S]")
+logging.basicConfig(level=logging.INFO)
 # asyncio实现单线程异步IO,一处异步，处处异步
 # os提供调用操作系统的接口函数
 # json提供python对象到Json的转换
@@ -40,31 +39,34 @@ def init_jinja2(app,**kw):
     # 设置解析模板需要用到的环境变量
     options = dict(
         autoescape = kw.get('autoescape', True),  # 自动转义xml/html的特殊字符
-        # 下面两句的意思是{%和%}中间的是python代码而不是html
-        block_start_string = kw.get('block_start_string', '{%'),        # 设置代码起始字符串
-        block_end_string = kw.get('block_end_string', '%}'),            # 设置代码的终止字符串
-        variable_start_string = kw.get('variable_start_string', '{{'),  # 这两句分别设置了变量的起始和结束字符串
-        variable_end_string = kw.get('variable_end_string', '}}'),      # 就是说{{和}}中间是变量，看过templates目录下的test.html文件后就很好理解了
-        auto_reload = kw.get('auto_reload', True)                       # 当模板文件被修改后，下次请求加载该模板文件的时候会自动加载修改后的模板文件
+        # 下面两句的意思是{%和%}、{{和}}中间的是python代码而不是html
+        block_start_string = kw.get('block_start_string', '{%'),
+        block_end_string = kw.get('block_end_string', '%}'),
+        variable_start_string = kw.get('variable_start_string', '{{'),
+        variable_end_string = kw.get('variable_end_string', '}}'),
+        auto_reload = kw.get('auto_reload', True)
     )
-    path = kw.get('path', None)  # 从kw中获取模板路径，如果没有传入这个参数则默认为None
+    path = kw.get('path', None) # 从kw中获取模板路径，如果没有传入这个参数则默认为None
     # 如果path为None，则将当前文件所在目录下的templates目录设为模板文件目录
     if path is None:
         # os.path.abspath(__file__)取当前文件的绝对目录
         # os.path.dirname()取绝对目录的路径部分
         # os.path.join(path， name)把目录和名字组合
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'templates')
     logging.info('set jinja2 template path: %s' % path)
-    # loader=FileSystemLoader(path)指的是到哪个目录下加载模板文件， **options就是前面的options
-    env = Environment(loader = FileSystemLoader(path), **options)
+    # loader=FileSystemLoader(path)指的是到哪个目录下加载模板文件，
+    # **options就是前面的options
+    env = Environment(loader=FileSystemLoader(path), **options)
     filters = kw.get('filters', None)  # fillters=>过滤器
     if filters is not None:
         for name, f in filters.items():
             env.filters[name] = f  # 在env中添加过滤器
-    # 前面已经把jinjia2的环境配置都赋值给env了，这里再把env存入app的dict中，这样app就知道要去哪找模板，怎么解析模板
+    # 前面已经把jinjia2的环境配置都赋值给env了
+    # 这里再把env存入app的dict中，这样app就知道要去哪找模板，怎么解析模板
     app['__templating__'] = env
 
-# 这个函数的作用就是当http请求的时候，通过logging.info输出请求的信息，其中包括请求的方法和路径
+# 当http请求的时候，通过logging.info输出请求的信息，其中包括请求的方法和路径
 @asyncio.coroutine
 def logger_factory(app, handler):
     @asyncio.coroutine
@@ -84,14 +86,16 @@ def auth_factory(app, handler):
     def auth(request):
         logging.info("check user: %s %s" % (request.method, request.path))
         request.__user__ = None # 先绑定一个None到请求的__user__属性
-        cookie_str = request.cookies.get(COOKIE_NAME) # 通过cookie名取得加密cookie字符串(不明白的看看handlers.py)
+        # 通过cookie名取得加密cookie字符串
+        cookie_str = request.cookies.get(COOKIE_NAME)
         if cookie_str:
             user = yield from cookie2user(cookie_str) # 验证cookie,并得到用户信息
             if user:
                 logging.info("set current user: %s" % user.email)
                 request.__user__ = user  # 将用户信息绑定到请求上
-            # 请求的路径是管理页面,但用户非管理员,将会重定向到登录页面?
-        if request.path.startswith('/manage/') and (request.__user__ is None or not request.__user__.admin):
+        # 请求的路径是管理页面,但用户非管理员,将会重定向到登录页面?
+        if request.path.startswith('/manage/') and \
+                (request.__user__ is None or not request.__user__.admin):
             return web.HTTPFound('/signin')
         return (yield from handler(request))
     return auth
@@ -101,17 +105,18 @@ def auth_factory(app, handler):
 def data_factory(app, handler):
     @asyncio.coroutine
     def parse_data(request):
-        # 解析数据是针对post方法传来的数据,若http method非post,将跳过,直接调用handler处理请求
+        # 解析数据是针对post方法传来的数据不是post,将跳过,直接调用handler处理请求
         if request.method == "POST":
-            # content_type字段表示post的消息主体的类型, 以application/json打头表示消息主体为json
+            # content_type字段表示post的消息主体的类型
             # request.json方法,读取消息主题,并以utf-8解码
             # 将消息主体存入请求的__data__属性
             if request.content_type.startswith("application/json"):
                 request.__data__ = yield from request.json()
                 logging.info("request json: %s" % str(request.__data__))
-            # content type字段以application/x-www-form-urlencodeed打头的,是浏览器表单
+            # content type字段application/x-www-form-urlencodeed是浏览器表单
             # request.post方法读取post来的消息主体,即表单信息
-            elif request.content_type.startswith("application/x-www-form-urlencoded"):
+            elif request.content_type.startswith(
+                    "application/x-www-form-urlencoded"):
                 request.__data__ = yield from request.post()
                 logging.info("request form: %s" % str(request.__data__))
         # 调用传入的handler继续处理请求
@@ -151,13 +156,16 @@ def response_factory(app, handler):
             template = r.get("__template__")
             # 若不存在对应模板,则将字典调整为json格式返回,并设置响应类型为json
             if template is None:
-                resp = web.Response(body=json.dumps(r, ensure_ascii=False, default=lambda o: o.__dict__).encode("utf-8"))
+                resp = web.Response(body=json.dumps(r, ensure_ascii=False, \
+                    default=lambda o: o.__dict__).encode("utf-8"))
                 resp.content_type = "application/json;charset=utf-8"
                 return resp
             # 存在对应模板的,则将套用模板,用request handler的结果进行渲染
             else:
-                r["__user__"] = request.__user__  # 增加__user__,前端页面将依次来决定是否显示评论框
-                resp = web.Response(body=app["__templating__"].get_template(template).render(**r).encode("utf-8"))
+                # 增加__user__,前端页面将依次来决定是否显示评论框
+                r["__user__"] = request.__user__
+                resp = web.Response(body=app["__templating__"].\
+                    get_template(template).render(**r).encode("utf-8"))
                 resp.content_type = "text/html;charset=utf-8"
                 return resp
         # 若响应结果为整型的
@@ -199,13 +207,14 @@ def datetime_filter(t):
 @asyncio.coroutine
 def init(loop):
     # 创建数据库连接池
-    yield from orm.create_pool(loop = loop, **configs.db)
-    # middleware是一种拦截器，一个URL在被某个函数处理前，可以经过一系列的middleware的处理。
-    # 一个middleware可以改变URL的输入、输出，甚至可以决定不继续处理而直接返回。
-    # middleware的用处就在于把通用的功能从每个URL处理函数中拿出来，集中放到一个地方。
-    app = web.Application(loop = loop, middlewares = [logger_factory, auth_factory, response_factory])
+    yield from orm.create_pool(loop=loop, **configs.db)
+    # middleware是一种拦截器，一个URL在被某个函数处理前，可以经过一系列的middleware的处理
+    # 一个middleware可以改变URL的输入、输出，甚至可以决定不继续处理而直接返回
+    # middleware的用处就在于把通用的功能从每个URL处理函数中拿出来，集中放到一个地方
+    app = web.Application(loop=loop, middlewares=[
+        logger_factory, auth_factory, response_factory])
     # 初始化jinja2模板，并传入时间过滤器
-    init_jinja2(app, filters = dict(datetime = datetime_filter))
+    init_jinja2(app, filters=dict(datetime=datetime_filter))
     # 下面这两个函数在coroweb模块中
     add_routes(app, 'handlers')     # handlers指的是handlers模块也就是handlers.py
     add_static(app)                 # 加静态文件目录
@@ -215,18 +224,17 @@ def init(loop):
 
 
 
-# asyncio的编程模块实际上就是一个消息循环。我们从asyncio模块中直接获取一个eventloop（事件循环）的引用，
-# @asyncio.coroutine把一个generator标记为coroutine类型，然后，我们就把这个coroutine扔到EventLoop中执行
+# asyncio的编程模块实际上就是一个消息循环
+# 我们从asyncio模块中直接获取一个eventloop（事件循环）的引用，
+# @asyncio.coroutine把一个generator标记为coroutine类型
+# 然后，我们就把这个coroutine扔到EventLoop中执行
 
 # 第一步是获取eventloop
-# get_event_loop() => 获取当前脚本下的事件循环，返回一个event loop对象(这个对象的类型是
-# 'asyncio.windows_events._WindowsSelectorEventLoop')，实现AbstractEventLoop（事件循环的基类）接口
+# get_event_loop() => 获取当前脚本下的事件循环，返回一个event loop对象
+# 实现AbstractEventLoop（事件循环的基类）接口
 # 如果当前脚本下没有事件循环，将抛出异常，get_event_loop()永远不会抛出None
 loop = asyncio.get_event_loop()
 # 之后是执行curoutine
 loop.run_until_complete(init(loop))
 # 无限循环运行直到stop()
 loop.run_forever()
-
-
-
