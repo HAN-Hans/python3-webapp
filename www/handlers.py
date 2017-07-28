@@ -254,7 +254,7 @@ def api_register_user(*,name, email, passwd): # 注册信息包括用户名,邮�
     # 论坛等地方使用它。此处image就是一个根据用户email生成的头像
     user = User(id=uid, name=name.strip(), email=email,
                 passwd=hashlib.sha1(sha1_passwd.encode('utf-8')).hexdigest(),
-                image="http://www.gravatar.com/avatar/%s?d=mm&s=120" % \
+                image="http://www.gravatar.com/avatar/%s?d=identicon&s=120" % \
                     hashlib.md5(email.encode('utf-8')).hexdigest())
     yield from user.save() # 将用户信息储存到数据库中
     # 这其实还是一个handler,因此需要返回response. 此时返回的response是带有cookie的响应
