@@ -25,7 +25,7 @@ env.user = 'h'
 # sudo用户为root
 env.sudo_user = 'root'
 # 服务器地址，可以有多个，依次部署
-env.hosts = ['127.0.0.1']
+env.hosts = ['192.168.1.106']
 
 # 服务器MySQL用户名和口令
 db_user = 'root'

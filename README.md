@@ -6,7 +6,7 @@ Asesome Pyhthon3 WebApp 项目回顾与总结
 
 # #引言
 
-这个项目是大概花了一个多月时间完成的，代码几乎全是参考[实战](http://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/001432170876125c96f6cc10717484baea0c6da9bee2be4000) 自己一个一个敲出来的。期间我查阅了许多[资料](#reference), 对于不理解的自己都加了比较详细的注释。这样能够在自己理解python-webapp源代码的同时，加深对python基础语法的理解。目前对后端开发还是处于探索阶段，希望通过不同实践经历多学点。暂时博客还没有部署在服务器上，我打算在学习完前端知识后将前端页面修改好后再部署到服务器上。
+这个项目是大概花了一个多月时间完成的，代码几乎全是参考[实战](http://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/001432170876125c96f6cc10717484baea0c6da9bee2be4000) 自己一个一个敲出来的。期间我查阅了许多[资料](#reference), 对于不理解的自己都加了比较详细的注释。这样能够在自己理解python-webapp源代码的同时，加深对python基础语法的理解。
 
 > 注：本项目源代码与[Python3教程](http://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000)代码基本一样，主要是在代码中间注释中添加自己对代码的理解
 
@@ -34,39 +34,36 @@ Asesome Pyhthon3 WebApp 项目回顾与总结
 ## 项目结构
 
     python3-webapp     <-- 根目录
-	  ├─backup           <-- 备份目录			
-	  ├─conf             <-- 配置文件
-	  │  ├─nginx
-	  │  └─supervisor
+	  ├─backup           <-- 备份目录
+	  ├─conf             <-- 部署配置文件
+	  │  ├─nginx		<-- 高性能Web服务器+负责反向代理
+	  │  └─supervisor	<-- 监控服务进程
+	  ├─dist			 <-- 项目打包tar
+	  ├─fabfile.py		<-- fabric自动化部署
 	  ├─ios              <-- 存放iOS App工程
 	  │  └─AwesomeApp.xcodeproj
 	  │      └─project.xcworkspace
+	  ├─requirement.txt		<-- 项目第三方库
 	  └─www              <-- Web目录
 	      ├─static       <-- 存放静态文件
-	      │  ├─css
-	      │  │  └─addons
-	      │  ├─fonts
-	      │  ├─img
-	      │  └─js
-	      ├─templates    <-- 存放模板文件
-	      └─__pycache__
+	      └─templates    <-- 存放模板文件
 
 其中我们的代码主要是放在/www/文件夹中：
 
 	www			<-- Web目录
-	│  apis.py		<-- 定义了APIError类和Page类，分别处理api异常和分页管理
-	│  app.py		<-- Webapp主程序，初始化了`jinja2`环境, 实现了各`middleware factory`, 创建了app对象, 完成系统初始化
-	│  config.py		<-- 配置文件，把config_default.py作为开发环境的标准配置，把config_override.py作为生产环境的标准配置
-	│  config_default.py	<-- 默认的配置文件
-	│  config_override.py	<-- 动态的配置文件
-	│  coroweb.py		<-- webapp框架，说白了就是事务处理(`handler`)的基础准备
-	│  handlers.py		<-- url请求处理，用于向前端提供和收集数据
-	│  markdown2.py		<-- text-to-HTML执行markdown的python模块库文件
-	│  models.py		<-- 在ORM基础上建立集体的类，USer、Blog、Comment 三个对象
-	│  orm.py		<-- 建立ORM, 此处所有代码都是为此服务的——创建了全局数据库连接池, 封装sql操作, 自定义元类, 定义Model类
-	│  pymonitor.py		<-- 对文件监控如果有修改不需要重启进程
-	│  schema.sql		<-- 简单的sql脚本，用于创建database表，项目ORM中就可以实现
-	│  test.py		<-- 项目过程中的测试文件
+	├─ apis.py		<-- 定义了APIError类和Page类，分别处理api异常和分页管理
+	├─ app.py		<-- Webapp主程序，初始化了`jinja2`环境, 实现了各`middleware factory`, 创建了app对象, 完成系统初始化
+	├─ config.py		<-- 配置文件，把config_default.py作为开发环境的标准配置，把config_override.py作为生产环境的标准配置
+	├─ config_default.py	<-- 默认的配置文件
+	├─ config_override.py	<-- 动态的配置文件
+	├─ coroweb.py		<-- webapp框架，说白了就是事务处理(`handler`)的基础准备
+	├─ handlers.py		<-- url请求处理，用于向前端提供和收集数据
+	├─ markdown2.py		<-- text-to-HTML执行markdown的python模块库文件
+	├─ models.py		<-- 在ORM基础上建立集体的类，USer、Blog、Comment 三个对象
+	├─ orm.py		<-- 建立ORM, 此处所有代码都是为此服务的——创建了全局数据库连接池, 封装sql操作, 自定义元类, 定义Model类
+	├─ pymonitor.py		<-- 对文件监控如果有修改不需要重启进程
+	├─ schema.sql		<-- 简单的sql脚本，用于创建database表，项目ORM中就可以实现
+	└─ test.py		<-- 项目过程中的测试文件
 
 ## 程序流程
 

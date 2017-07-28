@@ -14,7 +14,9 @@ __author__ = 'Justin Han'
 # 日志级别大小关系为：CRITICAL > ERROR > WARNING > INFO > DEBUG > NOTSET
 # 用basiconfig()函数设置logging的默认level为INFO
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s %(message)s",  # display date
+                    datefmt="[%Y-%m-%d %H:%M:%S]")
 # asyncio实现单线程异步IO,一处异步，处处异步
 # os提供调用操作系统的接口函数
 # json提供python对象到Json的转换
