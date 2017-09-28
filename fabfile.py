@@ -59,7 +59,7 @@ def backup():
 
 def build():
     '''
-    Build dist package.
+    Build dist package.打包所有部署文件
     '''
     includes = ['static', 'templates', 'favicon.ico', '*.py']
     excludes = ['test', '.*', '*.pyc', '*.pyo']

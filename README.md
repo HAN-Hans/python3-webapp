@@ -212,11 +212,16 @@ INFO:aiohttp.access:127.0.0.1 - - [26/Jul/2017:13:01:58 +0000] "GET /static/font
 
 仔细看, 你会发现, 从上到下的过程就是一个实现`MVC`模型的过程: `建立model` -> `构建前端视图` -> `注册处理控制`.
 
+---
+
+# 应用部署
 
 
 
 
-## 参考资料
+---
+
+# 参考资料
 
 
 ***[stackoverflow python](http://stackoverflow.com/questions/tagged/python?page=2&sort=votes&pagesize=15)***

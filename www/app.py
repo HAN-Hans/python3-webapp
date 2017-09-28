@@ -1,38 +1,33 @@
-# !/usr/bin/python
+#!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
 '''
-    这个Web App建立在asyncio的基础上，
-    使用Jinja2模板引擎渲染前端模板，
-    所有数据储存在MySQL，利用aiomysql实现异步驱动
-    因此用aiohttp写一个基本的app.py，包含日志、用户和评论
+    这个 Web App 建立在 asyncio 的基础上，
+    使用 Jinja2 模板引擎渲染前端模板，
+    所有数据储存在 MySQL ，利用 aiomysql 实现异步驱动
 '''
 
+__version__ ='0.1'
 __author__ = 'Justin Han'
 
-# logging模块是对应用程序或库实现一个灵活的事件日志处理系统
-# 日志级别大小关系为：CRITICAL > ERROR > WARNING > INFO > DEBUG > NOTSET
-# 用basiconfig()函数设置logging的默认level为INFO
+import os
+import json
+import time
 import logging
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s %(message)s",  # display date
-                    datefmt="[%Y-%m-%d %H:%M:%S]")
-# asyncio实现单线程异步IO,一处异步，处处异步
-# os提供调用操作系统的接口函数
-# json提供python对象到Json的转换
-# time为各种时间操作函数，datatime处理日期时间标准库
-import asyncio, os, json, time
+import asyncio
 from datetime import datetime
-# aiohttp是基于asyncio的http框架
 from aiohttp import web
-# Jinja2 是仿照 Django 模板的 Python 前端引擎模板
-# Environment指的是jinjia2模板的配置环境
-# FileSystemLoader是文件系统加载器，用来加载模板路径
 from jinja2 import Environment, FileSystemLoader
+
 import orm
 from coroweb import add_routes, add_static
 from handlers import cookie2user, COOKIE_NAME
 from config import configs
+
+# logging初始化设置
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s %(message)s",  # display date
+                    datefmt="[%Y-%m-%d %H:%M:%S]")
 
 
 # 这个函数的功能是初始化jinja2模板，配置jinja2的环境
@@ -220,8 +215,8 @@ def init(loop):
     # 下面这两个函数在coroweb模块中
     add_routes(app, 'handlers')     # handlers指的是handlers模块也就是handlers.py
     add_static(app)                 # 加静态文件目录
-    srv = yield from loop.create_server(app.make_handler(), '127.0.0.1', 9000)
-    logging.info('server started at http://127.0.0.1:9000...')
+    srv = yield from loop.create_server(app.make_handler(), '127.0.0.1', 8000)
+    logging.info('server started at http://127.0.0.1:8000...')
     return srv
 
 
