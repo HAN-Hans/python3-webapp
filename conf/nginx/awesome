@@ -1,11 +1,19 @@
 server {
+<<<<<<< HEAD
     listen      80;
+=======
+    listen      80; # 监听80端口
+>>>>>>> deploy
 
     root       /srv/awesome/www;
     access_log /srv/awesome/log/access_log;
     error_log  /srv/awesome/log/error_log;
 
+<<<<<<< HEAD
     # server_name awesome.liaoxuefeng.com;
+=======
+    # server_name awesome.liaoxuefeng.com;# 配置域名
+>>>>>>> deploy
 
     client_max_body_size 1m;
 
@@ -16,6 +24,7 @@ server {
 
     sendfile on;
 
+<<<<<<< HEAD
     location /favicon.ico {
         root /srv/awesome/www;
     }
@@ -24,6 +33,17 @@ server {
         root /srv/awesome/www;
     }
 
+=======
+    # 处理静态文件/favicon.ico:
+    location /favicon.ico {
+        root /srv/awesome/www;
+    }
+    # 处理静态资源:
+    location ~ ^\/static\/.*$ {
+        root /srv/awesome/www;
+    }
+    # 动态请求转发到9000端口:
+>>>>>>> deploy
     location / {
         proxy_pass       http://127.0.0.1:9000;
         proxy_set_header X-Real-IP $remote_addr;
