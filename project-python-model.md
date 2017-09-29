@@ -47,3 +47,23 @@ json提供四个功能：dumps, dump, loads, load
 
     data = {'a':True, 'b':False, 'c':None, 'd':(1,2), 1:'abc'}
     j_str = json.dumps(data) // '{"a": true, "c": null, "d": [1, 2], "b": false, "1": "abc"}'
+
+
+# asyncio 
+
+asyncio的编程模块实际上就是一个消息循环
+我们从asyncio模块中直接获取一个eventloop（事件循环）的引用，
+@asyncio.coroutine把一个generator标记为coroutine类型
+然后，我们就把这个coroutine扔到EventLoop中执行
+
+第一步是获取eventloop
+get_event_loop() => 获取当前脚本下的事件循环，返回一个event loop对象
+实现AbstractEventLoop（事件循环的基类）接口
+如果当前脚本下没有事件循环，将抛出异常，get_event_loop()永远不会抛出None
+
+# aiohttp
+
+web.Application
+    # middleware是一种拦截器，一个URL在被某个函数处理前，可以经过一系列的middleware的处理
+    # 一个middleware可以改变URL的输入、输出，甚至可以决定不继续处理而直接返回
+    # middleware的用处就在于把通用的功能从每个URL处理函数中拿出来，集中放到一个地方

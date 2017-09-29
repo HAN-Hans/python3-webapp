@@ -24,11 +24,11 @@ from coroweb import add_routes, add_static
 from handlers import cookie2user, COOKIE_NAME
 from config import configs
 
+
 # logging初始化设置
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(message)s",  # display date
                     datefmt="[%Y-%m-%d %H:%M:%S]")
-
 
 # 这个函数的功能是初始化jinja2模板，配置jinja2的环境
 def init_jinja2(app,**kw):
@@ -199,15 +199,12 @@ def datetime_filter(t):
     return u'%s年%s月%s日' % (dt.year, dt.month, dt.day)
 
 
-
 # 调用asyncio实现异步IO
 @asyncio.coroutine
 def init(loop):
     # 创建数据库连接池
     yield from orm.create_pool(loop=loop, **configs.db)
-    # middleware是一种拦截器，一个URL在被某个函数处理前，可以经过一系列的middleware的处理
-    # 一个middleware可以改变URL的输入、输出，甚至可以决定不继续处理而直接返回
-    # middleware的用处就在于把通用的功能从每个URL处理函数中拿出来，集中放到一个地方
+    # 创建web应用对象, 并传入中间件
     app = web.Application(loop=loop, middlewares=[
         logger_factory, auth_factory, response_factory])
     # 初始化jinja2模板，并传入时间过滤器
@@ -215,21 +212,13 @@ def init(loop):
     # 下面这两个函数在coroweb模块中
     add_routes(app, 'handlers')     # handlers指的是handlers模块也就是handlers.py
     add_static(app)                 # 加静态文件目录
+    # loop.create_server()则利用asyncio创建TCP服务
     srv = yield from loop.create_server(app.make_handler(), '127.0.0.1', 8000)
     logging.info('server started at http://127.0.0.1:8000...')
     return srv
 
 
-
-# asyncio的编程模块实际上就是一个消息循环
-# 我们从asyncio模块中直接获取一个eventloop（事件循环）的引用，
-# @asyncio.coroutine把一个generator标记为coroutine类型
-# 然后，我们就把这个coroutine扔到EventLoop中执行
-
-# 第一步是获取eventloop
-# get_event_loop() => 获取当前脚本下的事件循环，返回一个event loop对象
-# 实现AbstractEventLoop（事件循环的基类）接口
-# 如果当前脚本下没有事件循环，将抛出异常，get_event_loop()永远不会抛出None
+# 获取EventLoop:
 loop = asyncio.get_event_loop()
 # 之后是执行curoutine
 loop.run_until_complete(init(loop))

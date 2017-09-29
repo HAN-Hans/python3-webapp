@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 #-*- coding:utf-8 -*-
+
 '''
-#       ORM(Object Relational Mapping） 对象关系映射
+       ORM(Object Relational Mapping） 对象关系映射
 用来把对象模型表示的对象映射到基于SQL的关系模型数据库结构中去。
 这样，我们在具体的操作实体对象的时候，就不需要再去和复杂的SQL语句打交道，
 只需简单的操作实体对象的属性和方法。ORM技术是在对象和关系之间提供了一条桥梁，
