@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-'''
+"""
 Configuration
-'''
+"""
 
 
 import config_default
 
+
 class Dict(dict):
-    '''
+    """
     使dict可以通过dict.key和dict[key]方式访问键值对信息.
-    '''
+    """
+
     def __init__(self, names=(), values=(), **kw):
         super(Dict, self).__init__(**kw)
         for k, v in zip(names, values):
@@ -26,6 +28,7 @@ class Dict(dict):
     def __setattr__(self, key, value):
         self[key] = value
 
+
 # 用config_override中与config_default相同配置项替换
 def merge(defaults, override):
     r = {}
@@ -39,11 +42,13 @@ def merge(defaults, override):
             r[k] = v
     return r
 
+
 def toDict(d):
     D = Dict()
     for k, v in d.items():
         D[k] = toDict(v) if isinstance(v, dict) else v
     return D
+
 
 configs = config_default.configs
 

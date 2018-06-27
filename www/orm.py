@@ -1,13 +1,13 @@
 #!/usr/bin/python3
-#-*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 
-'''
-       ORM(Object Relational Mapping） 对象关系映射
+""" ORM(Object Relational Mapping） 对象关系映射
+
 用来把对象模型表示的对象映射到基于SQL的关系模型数据库结构中去。
 这样，我们在具体的操作实体对象的时候，就不需要再去和复杂的SQL语句打交道，
 只需简单的操作实体对象的属性和方法。ORM技术是在对象和关系之间提供了一条桥梁，
 前台的对象型数据和数据库中的关系型的数据通过这个桥梁来相互转化。
-'''
+"""
 
 
 import asyncio
@@ -19,6 +19,7 @@ import aiomysql     # aiomysql是Mysql的python异步驱动程序
 def log(sql, args=()):
     logging.info("[SQL sentence]：%s" % sql)
 
+
 # 这个函数在定义元类时被引用，作用是创建一定数量的占位符
 def create_args_string(num):
     l = []
@@ -28,7 +29,7 @@ def create_args_string(num):
     return ', '.join(l)
 
 
-#======================================创建连接池================================
+# ======================================创建连接池================================
 
 # 这个函数将来会在app.py的init函数中引用
 # 目的是为了让每个HTTP请求都能从连接池中直接获取数据库连接
@@ -43,16 +44,16 @@ def create_pool(loop, **kw):
     __pool = yield from aiomysql.create_pool(
         # 下面就是创建数据库连接需要用到的一些参数，从**kw（关键字参数）中取出来
         # kw.get的作用应该是，当没有传入参数是，默认参数就是get函数的第二项
-        host = kw.get("host", "localhost"),       # 数据库服务器位置，默认设在本地
-        port = kw.get("port", 3306),              # mysql的端口，默认设为3306
-        user = kw["user"],                        # 登陆用户名，通过关键词参数传进来
-        password = kw["password"],                # 登陆密码，通过关键词参数传进来
-        db = kw["db"],                            # 当前数据库名
-        charset = kw.get("charset", "utf8"),      # 设置编码格式，默认为utf8
-        autocommit = kw.get("autocommit", True),  # 自动提交模式，设置默认开启
-        maxsize = kw.get("maxsize", 10),          # 最大连接数默认设为10
-        minsize = kw.get("minsize", 1),           # 最小连接数，默认设为1
-        loop = loop                               # 传递消息循环对象，用于异步执行
+        host=kw.get("host", "localhost"),       # 数据库服务器位置，默认设在本地
+        port=kw.get("port", 3306),              # mysql的端口，默认设为3306
+        user=kw["user"],                        # 登陆用户名，通过关键词参数传进来
+        password=kw["password"],                # 登陆密码，通过关键词参数传进来
+        db=kw["db"],                            # 当前数据库名
+        charset=kw.get("charset", "utf8"),      # 设置编码格式，默认为utf8
+        autocommit=kw.get("autocommit", True),  # 自动提交模式，设置默认开启
+        maxsize=kw.get("maxsize", 10),          # 最大连接数默认设为10
+        minsize=kw.get("minsize", 1),           # 最小连接数，默认设为1
+        loop=loop                               # 传递消息循环对象，用于异步执行
     )
 
 
@@ -84,6 +85,8 @@ def select(sql, args, size=None):
         return rs                                   # 返回结果集
 
 # execute()函数只返回结果数，不返回结果集，适用于insert, update, Delete这些语句
+
+
 @asyncio.coroutine
 def execute(sql, args):
     log(sql)
@@ -117,30 +120,40 @@ class Field(object):
                                 self.name)
 
 # 字符串域
+
+
 class StringField(Field):
     def __init__(self, name=None, primary_key=False, default=None,
-            ddl="varchar(100)"):
+                 ddl="varchar(100)"):
         super().__init__(name, ddl, primary_key, default)
 
 # 整数域
+
+
 class IntegerField(Field):
     def __init__(self, name=None, primary_key=False, default=0):
         super().__init__(name, "bigint", primary_key, default)
 
 # 布尔数域
+
+
 class BooleanField(Field):
     def __init__(self, name=None, primary_key=False, default=False):
         super().__init__(name, "boolean", primary_key, default)
 
 # 浮点数域
+
+
 class FloatField(Field):
     def __init__(self, name=None, primary_key=False, default=0.0):
         super().__init__(name, "real", primary_key, default)
 
 # 文本域
+
+
 class TextField(Field):
     def __init__(self, name=None, default=None):
-         super().__init__(name, 'text', False, default)
+        super().__init__(name, 'text', False, default)
 
 
 # ================================ModelMetaclass===============================
@@ -191,10 +204,10 @@ class ModelMetaclass(type):
             (primaryKey, ",".join(escaped_fields), tableName)
         attrs["__insert__"] = "insert into `%s` (%s, `%s`) values (%s)" % \
             (tableName, ",".join(escaped_fields), primaryKey, \
-                create_args_string(len(escaped_fields)+1))
+                create_args_string(len(escaped_fields) + 1))
         attrs["__update__"] = "update `%s` set %s where `%s`=?" % \
             (tableName, ",".join(map(lambda f: "`%s`=?" % \
-                (mappings.get(f).name or f), fields)), primaryKey)
+                                     (mappings.get(f).name or f), fields)), primaryKey)
         attrs["__delete__"] = "delete from `%s` where `%s`=?" % \
             (tableName, primaryKey)
         return type.__new__(cls, name, bases, attrs)
@@ -240,7 +253,7 @@ class Model(dict, metaclass=ModelMetaclass):
                 value = field.default() if callable(field.default) \
                     else field.default
                 logging.debug("using defaullt value for %s: %s" % \
-                    (key, str(value)))
+                              (key, str(value)))
                 # 把默认值设为这个属性的值
                 setattr(self, key, value)
         return value
@@ -254,7 +267,7 @@ class Model(dict, metaclass=ModelMetaclass):
         # select `%s`, %s from `%s` where `%s`=?
         # select函数之前定义过，这里传入了三个参数分别是之前定义的 sql、args、size
         rs = yield from select("%s where `%s`=?" % \
-            (cls.__select__, cls.__primary_key__), [pk], 1)
+                               (cls.__select__, cls.__primary_key__), [pk], 1)
         if len(rs) == 0:
             return None
         return cls(**rs[0])
@@ -293,7 +306,7 @@ class Model(dict, metaclass=ModelMetaclass):
     # findNumber() - 根据WHERE条件查找，但返回的是整数，适用于select count(*)类型的SQL
     @classmethod
     @asyncio.coroutine
-    def findNumber(cls, selectField, where = None, args = None):
+    def findNumber(cls, selectField, where=None, args=None):
         sql = ['select %s _num_ from `%s`' % (selectField, cls.__table__)]
         if where:
             sql.append("where")

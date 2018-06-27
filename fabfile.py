@@ -2,23 +2,22 @@
 # -*- coding:utf-8 -*-
 
 
-'''
+"""
 Deployment toolkit.
 正确的部署方式是使用工具配合脚本完成自动化部署。
-Fabric就是一个自动化部署工具。由于Fabric是用Python 2.x开发的，所以，
-部署脚本要用Python 2.7来编写，本机还必须安装Python 2.7版本
 Fabric提供local('...')来运行本地命令，
 with lcd(path)可以把当前命令的目录设定为lcd()指定的目录
 run()函数执行的命令是在服务器上运行，
 with cd(path)和with lcd(path)类似，把当前目录在服务器端设置为cd()指定的目录。
 如果一个命令需要sudo权限，就不能用run()，而是用sudo()来执行
 
-'''
+"""
 
 import os
 import re
 from datetime import datetime
 from fabric.api import *
+
 
 # 从服务器登录用户名
 env.user = 'h'
@@ -33,10 +32,9 @@ db_password = '12125772'
 
 # 打包后的文件名称
 _TAR_FILE = 'dist-awesome.tar.gz'
-
 _REMOTE_TMP_TAR = '/tmp/%s' % _TAR_FILE
-
 _REMOTE_BASE_DIR = '/srv/awesome'
+
 
 def _current_path():
     return os.path.abspath('.')
