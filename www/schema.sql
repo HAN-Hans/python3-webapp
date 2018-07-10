@@ -2,12 +2,12 @@
 
 drop database if exists awesome;
 
-create database awesome;
+create database awesome CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 use awesome;
 
-grant select, insert, update, delete on awesome.* to \
-    'www-data'@'localhost' identified by 'www-data';
+-- grant select, insert, update, delete on awesome.* to
+--     'root'@'localhost' identified by 'www-data';
 
 create table users (
     `id` varchar(50) not null,
@@ -33,7 +33,7 @@ create table blogs (
     `created_at` real not null,
     key `idx_created_at` (`created_at`),
     primary key (`id`)
-) engine=innodb default charset=utf8;
+) engine=innodb default charset=utf8mb4;
 
 create table comments (
     `id` varchar(50) not null,
@@ -45,4 +45,4 @@ create table comments (
     `created_at` real not null,
     key `idx_created_at` (`created_at`),
     primary key (`id`)
-) engine=innodb default charset=utf8;
+) engine=innodb default charset=utf8mb4;

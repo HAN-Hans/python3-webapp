@@ -12,7 +12,7 @@
 
 import asyncio
 import logging
-import aiomysql     # aiomysql是Mysql的python异步驱动程序
+import aiomysql
 
 
 # 这个函数的作用是输出信息，让你知道这个时间点程序在做什么
@@ -35,25 +35,24 @@ def create_args_string(num):
 # 目的是为了让每个HTTP请求都能从连接池中直接获取数据库连接
 # 避免了频繁关闭和打开数据库连接
 # 连接池由全局变量__pool存储，缺省情况下将编码设置为utf8(不是utf-8)，自动提交事务
-@asyncio.coroutine
-def create_pool(loop, **kw):
+async def create_pool(loop, **kw):
     logging.info("create a database connection pool...")
     # 声明变量__pool是一个全局变量，如果不加声明，__pool就会被默认为一个私有变量
     global __pool
     # 调用一个子协程来创建全局连接池，create_pool的返回值是一个pool实例对象
-    __pool = yield from aiomysql.create_pool(
+    __pool = await aiomysql.create_pool(
         # 下面就是创建数据库连接需要用到的一些参数，从**kw（关键字参数）中取出来
         # kw.get的作用应该是，当没有传入参数是，默认参数就是get函数的第二项
-        host=kw.get("host", "localhost"),       # 数据库服务器位置，默认设在本地
-        port=kw.get("port", 3306),              # mysql的端口，默认设为3306
-        user=kw["user"],                        # 登陆用户名，通过关键词参数传进来
-        password=kw["password"],                # 登陆密码，通过关键词参数传进来
-        db=kw["db"],                            # 当前数据库名
-        charset=kw.get("charset", "utf8"),      # 设置编码格式，默认为utf8
-        autocommit=kw.get("autocommit", True),  # 自动提交模式，设置默认开启
-        maxsize=kw.get("maxsize", 10),          # 最大连接数默认设为10
-        minsize=kw.get("minsize", 1),           # 最小连接数，默认设为1
-        loop=loop                               # 传递消息循环对象，用于异步执行
+        host=kw.pop("host", "localhost"),  # 数据库服务器位置，默认设在本地
+        port=kw.pop("port", 3306),  # mysql的端口，默认设为3306
+        user=kw.pop("user", "root"),  # 登陆用户名，通过关键词参数传进来
+        password=kw.pop("password", None),  # 登陆密码，通过关键词参数传进来
+        db=kw.pop("db", None),  # 当前数据库名
+        charset=kw.pop("charset", "utf8"),  # 设置编码格式，默认为utf8
+        autocommit=kw.pop("autocommit", True),  # 自动提交模式，设置默认开启
+        maxsize=kw.pop("maxsize", 10),  # 最大连接数默认设为10
+        minsize=kw.pop("minsize", 1),  # 最小连接数，默认设为1
+        loop=loop  # 传递消息循环对象，用于异步执行
     )
 
 
@@ -182,7 +181,8 @@ class ModelMetaclass(type):
                 # 先判断找到的映射是不是主键
                 if v.primary_key:
                     if primaryKey:  # 若主键已存在,又找到一个主键,将报错,每张表有且仅有一个主键
-                        raise RuntimeError("Duplicate primary key for field:%s" % k)
+                        raise RuntimeError(
+                            "Duplicate primary key for field:%s" % k)
                     primaryKey = k
                 else:
                     fields.append(k)
@@ -203,11 +203,10 @@ class ModelMetaclass(type):
         attrs["__select__"] = "select `%s`, %s from `%s`" % \
             (primaryKey, ",".join(escaped_fields), tableName)
         attrs["__insert__"] = "insert into `%s` (%s, `%s`) values (%s)" % \
-            (tableName, ",".join(escaped_fields), primaryKey, \
+            (tableName, ",".join(escaped_fields), primaryKey,
                 create_args_string(len(escaped_fields) + 1))
-        attrs["__update__"] = "update `%s` set %s where `%s`=?" % \
-            (tableName, ",".join(map(lambda f: "`%s`=?" % \
-                                     (mappings.get(f).name or f), fields)), primaryKey)
+        attrs["__update__"] = "update `%s` set %s where `%s`=?" % (tableName, ",".join(
+            map(lambda f: "`%s`=?" % (mappings.get(f).name or f), fields)), primaryKey)
         attrs["__delete__"] = "delete from `%s` where `%s`=?" % \
             (tableName, primaryKey)
         return type.__new__(cls, name, bases, attrs)
@@ -252,7 +251,7 @@ class Model(dict, metaclass=ModelMetaclass):
                 # 就给value赋值它被调用后的值，如果不可被调用直接返回这个值
                 value = field.default() if callable(field.default) \
                     else field.default
-                logging.debug("using defaullt value for %s: %s" % \
+                logging.debug("using defaullt value for %s: %s" %
                               (key, str(value)))
                 # 把默认值设为这个属性的值
                 setattr(self, key, value)
@@ -266,7 +265,7 @@ class Model(dict, metaclass=ModelMetaclass):
     def find(cls, pk):
         # select `%s`, %s from `%s` where `%s`=?
         # select函数之前定义过，这里传入了三个参数分别是之前定义的 sql、args、size
-        rs = yield from select("%s where `%s`=?" % \
+        rs = yield from select("%s where `%s`=?" %
                                (cls.__select__, cls.__primary_key__), [pk], 1)
         if len(rs) == 0:
             return None
@@ -328,7 +327,9 @@ class Model(dict, metaclass=ModelMetaclass):
         # insert into `%s` (%s, `%s`) values (%s)
         rows = yield from execute(self.__insert__, args)
         if rows != 1:
-            logging.warning("failed to insert record, affected rows: %s" % rows)
+            logging.warning(
+                "failed to insert record, affected rows: %s" %
+                rows)
 
     @asyncio.coroutine
     def update(self):

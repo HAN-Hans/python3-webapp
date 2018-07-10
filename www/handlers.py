@@ -1,26 +1,35 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+此处所列所有的handler都会在app.py中通过add_routes自动注册到app.router上
+因此,在此脚本尽情地书写request handler即可
+"""
 
-import time, re, json, logging, hashlib, base64, asyncio, markdown2
+
+import time
+import re
+import json
+import logging
+import hashlib
+import markdown2
 from aiohttp import web
+
+import config
 from coroweb import get, post
 from models import User, Comment, Blog, next_id
 from apis import APIResourceNotFoundError, APIValueError, APIError,\
-                 APIPermissionError, Page
-from config import configs
+    APIPermissionError, Page
 
-
-# 此处所列所有的handler都会在app.py中通过add_routes自动注册到app.router上
-# 因此,在此脚本尽情地书写request handler即可
 
 COOKIE_NAME = 'awesession'           # cookie名,用于设置cookie
-_COOKIE_KEY = configs.session.secret # cookie密钥,作为加密cookie的原始字符串的一部分
+_COOKIE_KEY = config.session['secret']  # cookie密钥,作为加密cookie的原始字符串的一部分
 
 # 匹配邮箱与加密后密码的证得表达式
 _RE_EMAIL = re.compile(
     r'^[a-zA-Z0-9\.\-\_]+\@[a-z0-9\-\_]+(\.[a-z0-9\-\_]+){1,4}$')
 _RE_SHA1 = re.compile(r'[0-9a-f]{40}$')
+
 
 # 验证用户身份
 def check_admin(request):
@@ -28,6 +37,7 @@ def check_admin(request):
     # 对于已登录的用户,检查其admin属性. 管理员的admin为真
     if request.__user__ is None or not request.__user__.admin:
         raise APIPermissionError()
+
 
 # 取得页码
 def get_page_index(page_str):
@@ -41,16 +51,27 @@ def get_page_index(page_str):
         p = 1
     return p
 
+
 # 文本转html
 def text2html(text):
     '''文本转html'''
     # 先用filter函数对输入的文本进行过滤处理: 断行,去首尾空白字符
     # 再用map函数对特殊符号进行转换,在将字符串装入html的<p>标签中
-    lines = map(lambda s: '<p>%s</p>' % \
-            s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'),\
-        filter(lambda s: s.strip() != '', text.split('\n')))
+    lines = map(
+        lambda s: '<p>%s</p>' %
+        s.replace(
+            '&',
+            '&amp;').replace(
+            '<',
+            '&lt;').replace(
+                '>',
+                '&gt;'),
+        filter(
+            lambda s: s.strip() != '',
+            text.split('\n')))
     # lines是一个字符串列表,将其组装成一个字符串,该字符串即表示html的段落
     return ''.join(lines)
+
 
 # 通过用户信息计算加密cookie
 def user2cookie(user, max_age):
@@ -64,22 +85,22 @@ def user2cookie(user, max_age):
     # build cookie string by: id-expires-sha1
     return "-".join(L)
 
+
 # 解密cookie
-@asyncio.coroutine
-def cookie2user(cookie_str):
+async def cookie2user(cookie_str):
     '''Parse cookie and load user if cookie is valid'''
     # cookie_str就是user2cookie函数的返回值
     if not cookie_str:
         return None
     try:
         # 解密是加密的逆向过程,因此,先通过'-'拆分cookie,得到用户id,失效时间,以及加密字符串
-        L = cookie_str.split("-") # 返回一个str的list
-        if len(L) != 3: # 由上可知,cookie由3部分组成,若拆分得到不是3部分,显然出错了
+        L = cookie_str.split("-")  # 返回一个str的list
+        if len(L) != 3:  # 由上可知,cookie由3部分组成,若拆分得到不是3部分,显然出错了
             return None
         uid, expires, sha1 = L
-        if int(expires) < time.time(): # 失效时间小于当前时间,说明cookie已失效
+        if int(expires) < time.time():  # 失效时间小于当前时间,说明cookie已失效
             return None
-        user = yield from User.find(uid)  # 在拆分得到的id在数据库中查找用户信息
+        user = await User.find(uid)  # 在拆分得到的id在数据库中查找用户信息
         if user is None:
             return None
         # 利用用户id,加密后的密码,失效时间,加上cookie密钥,组合成待加密的原始字符串
@@ -97,17 +118,18 @@ def cookie2user(cookie_str):
         logging.exception(e)
     return None
 
+
 # 对于首页的get请求的处理
 @get('/')
-def index(*, page="1"):
+async def index(*, page="1"):
     page_index = get_page_index(page)
-    num = yield from Blog.findNumber("count(id)")
+    num = await Blog.findNumber("count(id)")
     page = Page(num)
     if num == 0:
         blogs = []
     else:
-        blogs = yield from Blog.findAll(
-            orderBy = "created_at desc", limit=(page.offset, page.limit))
+        blogs = await Blog.findAll(
+            orderBy="created_at desc", limit=(page.offset, page.limit))
     # 返回一个字典, 其指示了使用何种模板,模板的内容
     # app.py的response_factory将会对handler的返回值进行分类处理
     return {
@@ -116,6 +138,7 @@ def index(*, page="1"):
         "blogs": blogs  # 参数blogs将在jinja2模板中被解析
     }
 
+
 # 返回注册页面
 @get("/register")
 def register():
@@ -123,12 +146,14 @@ def register():
         "__template__": "register.html"
     }
 
+
 # 返回登录页面
 @get("/signin")
 def signin():
     return{
         "__template__": "signin.html"
     }
+
 
 # 用户登出
 @get("/signout")
@@ -143,12 +168,13 @@ def signout(request):
     logging.info("user signed out.")
     return r
 
+
 # 博客详情页
 @get('/blog/{id}')
-def get_blog(id):
-    blog = yield from Blog.find(id) # 通过id从数据库拉取博客信息
+async def get_blog(id):
+    blog = await Blog.find(id)  # 通过id从数据库拉取博客信息
     # 从数据库拉取指定blog的全部评论,按时间降序排序,即最新的排在最前
-    comments = yield from Comment.findAll(
+    comments = await Comment.findAll(
         'blog_id=?', [id], orderBy='created_at desc')
     # 将每条评论都转化为html格式(根据text2html代码可知,实际为html的<p>)
     for c in comments:
@@ -162,6 +188,7 @@ def get_blog(id):
         "comments": comments
     }
 
+
 # 写博客的页面
 @get('/manage/blogs/create')
 def manage_create_blog():
@@ -173,9 +200,10 @@ def manage_create_blog():
         'action': '/api/blogs'
     }
 
+
 # 修改博客的页面
 @get('/manage/blogs/edit')
-def manage_edit_blog(*, id):
+async def manage_edit_blog(*, id):
     return {
         "__template__": "manage_blog_edit.html",
         'id': id,    # id的值将传给js变量I
@@ -184,52 +212,58 @@ def manage_edit_blog(*, id):
         'action': '/api/blogs/%s' % id
     }
 
+
 # 管理重定向
 @get("/manage/")
-def manage():
+async def manage():
     return "redirect:/manage/comments"
+
 
 # 管理博客的页面
 @get('/manage/blogs')
-def manage_blogs(*, page='1'):  # 管理页面默认从"1"开始
+async def manage_blogs(*, page='1'):  # 管理页面默认从"1"开始
     return {
         "__template__": "manage_blogs.html",
-        "page_index": get_page_index(page)  #通过page_index来显示分页
+        "page_index": get_page_index(page)  # 通过page_index来显示分页
     }
+
 
 # 管理评论的页面
 @get('/manage/comments')
-def manage_comments(*, page='1'):  # 管理页面默认从"1"开始
+async def manage_comments(*, page='1'):  # 管理页面默认从"1"开始
     return {
         "__template__": "manage_comments.html",
-        "page_index": get_page_index(page)  #通过page_index来显示分页
+        "page_index": get_page_index(page)  # 通过page_index来显示分页
     }
+
 
 # 管理用户的页面
 @get('/manage/users')
-def manage_users(*, page='1'):  # 管理页面默认从"1"开始
+async def manage_users(*, page='1'):  # 管理页面默认从"1"开始
     return {
         "__template__": "manage_users.html",
-        "page_index": get_page_index(page)  #通过page_index来显示分页
+        "page_index": get_page_index(page)  # 通过page_index来显示分页
     }
+
 
 # API: 获取用户信息
 @get('/api/users')
-def api_get_users(*, page="1"):
+async def api_get_users(*, page="1"):
     page_index = get_page_index(page)
-    num = yield from User.findNumber("count(id)")
+    num = await User.findNumber("count(id)")
     p = Page(num, page_index)
     if num == 0:
         return dict(page=p, users=())
-    users = yield from User.findAll(orderBy="created_at desc")
+    users = await User.findAll(orderBy="created_at desc")
     for u in users:
         u.passwd = "*****"
     # 以dict形式返回,并且未指定__template__,将被app.py的response factory处理为json
     return dict(page=p, users=users)
 
+
 # API: 创建用户
 @post('/api/users')
-def api_register_user(*,name, email, passwd): # 注册信息包括用户名,邮箱与密码
+async def api_register_user(*, name, email, passwd):  # 注册信息包括用户名,邮箱与密码
     # 验证输入的正确性
     if not name or not name.strip():
         raise APIValueError("name")
@@ -238,13 +272,13 @@ def api_register_user(*,name, email, passwd): # 注册信息包括用户名,邮�
     if not passwd or not _RE_SHA1.match(passwd):
         raise APIValueError("passwd")
     # 在数据库里查看是否已存在该email
-    users = yield from User.findAll('email=?', [email])
-    if len(users) > 0: # findAll的结果不为0,说明数据库已存在同名email,抛出异常报错
+    users = await User.findAll('email=?', [email])
+    if len(users) > 0:  # findAll的结果不为0,说明数据库已存在同名email,抛出异常报错
         raise APIError('register:failed', 'email', 'Email is already in use.')
 
     # 数据库内无相应的email信息,说明是第一次注册
-    uid = next_id() # 利用当前时间与随机生成的uuid生成user id
-    sha1_passwd = '%s:%s' % (uid, passwd) # 将user、id与密码的组合赋给sha1_passwd
+    uid = next_id()  # 利用当前时间与随机生成的uuid生成user id
+    sha1_passwd = '%s:%s' % (uid, passwd)  # 将user、id与密码的组合赋给sha1_passwd
     # 创建用户对象, 其中密码并不是用户输入的密码,而是经过复杂处理后的保密字符串
     # unicode对象在进行哈希运算之前必须先编码
     # sha1()是一种不可逆的安全算法.这在一定程度上保证了安全性,因为用户密码只有用户一个人知道
@@ -254,9 +288,9 @@ def api_register_user(*,name, email, passwd): # 注册信息包括用户名,邮�
     # 论坛等地方使用它。此处image就是一个根据用户email生成的头像
     user = User(id=uid, name=name.strip(), email=email,
                 passwd=hashlib.sha1(sha1_passwd.encode('utf-8')).hexdigest(),
-                image="http://www.gravatar.com/avatar/%s?d=identicon&s=120" % \
-                    hashlib.md5(email.encode('utf-8')).hexdigest())
-    yield from user.save() # 将用户信息储存到数据库中
+                image="http://www.gravatar.com/avatar/%s?d=identicon&s=120" %
+                hashlib.md5(email.encode('utf-8')).hexdigest())
+    await user.save()  # 将用户信息储存到数据库中
     # 这其实还是一个handler,因此需要返回response. 此时返回的response是带有cookie的响应
     r = web.Response()
     # 刚创建的的用户设置cookiei(网站为了辨别用户身份而储存在用户本地终端的数据)
@@ -266,25 +300,26 @@ def api_register_user(*,name, email, passwd): # 注册信息包括用户名,邮�
     # 当时间结束时,客户端将抛弃该cookie.之后需要重新登录
     r.set_cookie(COOKIE_NAME, user2cookie(user, 600),
                  max_age=600, httponly=True)  # 设置cookie最大存会时间为10min
-    user.passwd = '******' # 修改密码的外部显示为*
+    user.passwd = '******'  # 修改密码的外部显示为*
     # 设置content_type,将在data_factory中间件中继续处理
     r.content_type = 'application/json'
     # json.dumps方法将对象序列化为json格式
     r.body = json.dumps(user, ensure_ascii=False).encode('utf-8')
     return r
 
+
 # API: 用户验证
 @post("/api/authenticate")
-def authenticate(*, email, passwd): # 通过邮箱与密码验证登录
+async def authenticate(*, email, passwd):  # 通过邮箱与密码验证登录
     # 验证邮箱与密码的合法性
     if not email:
         raise APIValueError("email", "Invalid email")
     if not passwd:
         raise APIValueError("passwd", "Invalid password")
-    users = yield from User.findAll("email=?", [email]) # 在数据库中查找email
-    if len(users) == 0: # 查询结果为空,即数据库中没有相应的email记录,说明用户不存在
+    users = await User.findAll("email=?", [email])  # 在数据库中查找email
+    if len(users) == 0:  # 查询结果为空,即数据库中没有相应的email记录,说明用户不存在
         raise APIValueError("email", "Email not exits")
-    user = users[0] # 取得用户记录.事实上,就只有一条用户记录,只不过返回的是list
+    user = users[0]  # 取得用户记录.事实上,就只有一条用户记录,只不过返回的是list
     # 验证密码,数据库中存储的并非原始的用户密码,而是加密的字符串
     # 对此时用户输入的密码做相同的加密操作,将结果与数据库中储存的密码比较,来验证密码的正确性
     # 对照用户时对原始密码的操作(见api_register_user),操作完全一样
@@ -303,31 +338,34 @@ def authenticate(*, email, passwd): # 通过邮箱与密码验证登录
     r.body = json.dumps(user, ensure_ascii=False).encode("utf-8")
     return r
 
+
 # API: 获取blog
 @get('/api/blogs')
-def api_blogs(*, page='1'):
+async def api_blogs(*, page='1'):
     page_index = get_page_index(page)
-    num = yield from Blog.findNumber('count(id)')  # num为博客总数
-    p = Page(num, page_index) # 创建page对象
+    num = await Blog.findNumber('count(id)')  # num为博客总数
+    p = Page(num, page_index)  # 创建page对象
     # 若博客数为0,返回字典,将被app.py的response中间件再处理
     if num == 0:
         return dict(page=p, blogs=())
     # 博客总数不为0,则从数据库中抓取博客
     # limit强制select语句返回指定的记录数,前一个参数为偏移量,后一个参数为记录的最大数目
-    blogs = yield from Blog.findAll(orderBy="created_at desc",
+    blogs = await Blog.findAll(orderBy="created_at desc",
                                     limit=(p.offset, p.limit))
     return dict(page=p, blogs=blogs)  # 返回字典,以供response中间件处理
 
+
 # API: 获取单条日志
 @get('/api/blogs/{id}')
-def api_get_blog(*, id):
-    blog = yield from Blog.find(id)
+async def api_get_blog(*, id):
+    blog = await Blog.find(id)
     return blog
+
 
 # API: 创建blog
 @post('/api/blogs')
-def api_create_blog(request, *, name, summary, content):
-    check_admin(request) # 检查用户权限
+async def api_create_blog(request, *, name, summary, content):
+    check_admin(request)  # 检查用户权限
     # 验证博客信息的合法性
     if not name or not name.strip():
         raise APIValueError("name", "name cannot be empty")
@@ -342,13 +380,14 @@ def api_create_blog(request, *, name, summary, content):
                 name=name.strip(),
                 summary=summary.strip(),
                 content=content.strip())
-    yield from blog.save() # 储存博客入数据库
-    return blog # 返回博客信息
+    await blog.save()  # 储存博客入数据库
+    return blog  # 返回博客信息
+
 
 # API: 修改博客
 @post("/api/blogs/{id}")
-def api_update_blog(id, request, *, name, summary, content):
-    check_admin(request) # 检查用户权限
+async def api_update_blog(id, request, *, name, summary, content):
+    check_admin(request)  # 检查用户权限
     # 验证博客信息的合法性
     if not name or not name.strip():
         raise APIValueError("name", "name cannot be empty")
@@ -356,41 +395,44 @@ def api_update_blog(id, request, *, name, summary, content):
         raise APIValueError("summary", "summary cannot be empty")
     if not content or not content.strip():
         raise APIValueError("content", "content cannot be empty")
-    blog = yield from Blog.find(id)  # 获取修改前的博客
+    blog = await Blog.find(id)  # 获取修改前的博客
     blog.name = name.strip()
     blog.summary = summary.strip()
     blog.content = content.strip()
-    yield from blog.update() # 更新博客
-    return blog # 返回博客信息
+    await blog.update()  # 更新博客
+    return blog  # 返回博客信息
+
 
 # API: 删除博客
 @post("/api/blogs/{id}/delete")
-def api_delete_blog(request, *, id):
+async def api_delete_blog(request, *, id):
     check_admin(request)  # 检查用户权限
     # 根据model类的定义,只有查询才是类方法,其他增删改都是实例方法
     # 因此需要先创建对象,再删除
-    blog = yield from Blog.find(id)  # 取出博客
-    yield from blog.remove()  # 删除博客
+    blog = await Blog.find(id)  # 取出博客
+    await blog.remove()  # 删除博客
     return dict(id=id)  # 返回被删博客的id
+
 
 # API: 获取评论
 @get("/api/comments")
-def api_comments(*, page="1"):
+async def api_comments(*, page="1"):
     page_index = get_page_index(page)
-    num = yield from Comment.findNumber('count(id)')  # num为评论总数
-    p = Page(num, page_index) # 创建page对象, 保存页面信息
+    num = await Comment.findNumber('count(id)')  # num为评论总数
+    p = Page(num, page_index)  # 创建page对象, 保存页面信息
     # 若评论数0,返回字典,将被app.py的response中间件再处理
     if num == 0:
         return dict(page=p, comments=())
     # 博客总数不为0,则从数据库中抓取博客
     # limit强制select语句返回指定的记录数,前一个参数为偏移量,后一个参数为记录的最大数目
-    comments = yield from Comment.findAll(orderBy="created_at desc",
+    comments = await Comment.findAll(orderBy="created_at desc",
                                           limit=(p.offset, p.limit))
     return dict(page=p, comments=comments)  # 返回字典,以供response中间件处理
 
+
 # API: 创建评论
 @post('/api/blogs/{id}/comments')
-def api_create_comment(id, request,  *, content):
+async def api_create_comment(id, request, *, content):
     user = request.__user__
     if user is None:
         raise APIPermissionError("Please signin first.")
@@ -398,24 +440,25 @@ def api_create_comment(id, request,  *, content):
     if not content or not content.strip():
         raise APIValueError("content", "content cannot be empty")
     # 检查博客的存在性
-    blog = yield from Blog.find(id)
+    blog = await Blog.find(id)
     if blog is None:
         raise APIResourceNotFoundError("Blog", "No such a blog.")
     # 创建评论对象
     comment = Comment(user_id=user.id,
                       user_name=user.name,
                       user_image=user.image,
-                      blog_id = blog.id,
+                      blog_id=blog.id,
                       content=content.strip())
-    yield from comment.save() # 储存评论入数据库
-    return comment # 返回评论
+    await comment.save()  # 储存评论入数据库
+    return comment  # 返回评论
+
 
 # API: 删除评论
 @post("/api/comments/{id}/delete")
-def api_delete_comment(id, request):
+async def api_delete_comment(id, request):
     check_admin(request)  # 检查权限
-    comment = yield from Comment.find(id)  # 从数据库中取出评论
+    comment = await Comment.find(id)  # 从数据库中取出评论
     if comment is None:
         raise APIResourceNotFoundError("Comment", "No such a Comment.")
-    yield from comment.remove()  # 删除评论
+    await comment.remove()  # 删除评论
     return dict(id=id)  # 返回被删评论的ID

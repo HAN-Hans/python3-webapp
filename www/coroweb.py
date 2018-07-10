@@ -1,15 +1,17 @@
 # -*- coding:utf-8 -*-
 
 
-import asyncio, logging, os
+import asyncio
+import logging
+import os
 import functools  # 高阶函数模块, 提供常用的高阶函数, 如wraps
-import inspect # 可以获取类或函数的类型，源码，参数信息等的模块
+import inspect  # 可以获取类或函数的类型，源码，参数信息等的模块
 from urllib import parse
 from aiohttp import web
 from apis import APIError
 
 
-#==================================路由修饰器==================================
+# ==================================路由修饰器==================================
 
 # 这是个装饰器，在handlers模块中被引用，其作用是给http请求添加请求方法和请求路径这两个属性
 # 这是个三层嵌套的decorator（装饰器），目的是可以在decorator本身传入参数
@@ -29,8 +31,9 @@ def get(path):
         wrapper.__route__ = path        # 给原始函数添加请求路径 path
         return wrapper
     return decorator
-# 这样，一个函数通过@get(path)的装饰就附带了URL信息
 
+
+# 这样，一个函数通过@get(path)的装饰就附带了URL信息
 def post(path):
     '''
     定义一个装饰器 @post("/path")
@@ -45,7 +48,7 @@ def post(path):
     return decorator
 
 
-#==================================请求处理====================================
+# ==================================请求处理====================================
 
 # 函数的参数fn本身就是个函数，下面五个函数是针对fn函数的参数做一些处理判断
 # 这个函数将得到fn函数中的没有默认值的关键词参数的元组
@@ -54,9 +57,10 @@ def get_required_kw_args(fn):
     params = inspect.signature(fn).parameters
     for name, param in params.items():
         if param.kind == inspect.Parameter.KEYWORD_ONLY \
-        and param.default == inspect.Parameter.empty:
+                and param.default == inspect.Parameter.empty:
             args.append(name)
     return tuple(args)
+
 
 # 这个函数将得到fn函数中的关键词参数的元组
 def get_named_kw_args(fn):
@@ -68,6 +72,8 @@ def get_named_kw_args(fn):
     return tuple(args)
 
 # 判断fn有没有关键词参数，如果有就输出True
+
+
 def has_named_kw_args(fn):
     params = inspect.signature(fn).parameters
     for name, param in params.items():
@@ -75,6 +81,8 @@ def has_named_kw_args(fn):
             return True
 
 # 判断fn有没有可变的关键词参数（**），如果有就输出True
+
+
 def has_var_kw_arg(fn):
     params = inspect.signature(fn).parameters
     for name, param in params.items():
@@ -82,6 +90,8 @@ def has_var_kw_arg(fn):
             return True
 
 # 判断fn的参数中有没有参数名为request的参数
+
+
 def has_request_arg(fn):
     # 这里是把之前函数的一句语句拆分为两句，拆分原因是后面要使用中间量sig
     sig = inspect.signature(fn)
@@ -92,11 +102,11 @@ def has_request_arg(fn):
             found = True
             continue
         # request参数必须是最后一个位置和关键词参数
-        if found and (param.kind != inspect.Parameter.VAR_POSITIONAL and \
-                      param.kind != inspect.Parameter.KEYWORD_ONLY and \
+        if found and (param.kind != inspect.Parameter.VAR_POSITIONAL and
+                      param.kind != inspect.Parameter.KEYWORD_ONLY and
                       param.kind != inspect.Parameter.VAR_KEYWORD):
             raise ValueError('request parameter must be the last named' +
-                             'parameter in function: %s%s' \
+                             'parameter in function: %s%s'
                              % (fn.__name__, str(sig)))
     return found
 
@@ -119,7 +129,7 @@ class RequestHandler(object):
     # 定义__call__参数后，其实例可以被视为函数
     @asyncio.coroutine
     def __call__(self, request):
-        kw = None  #假设不存在关键字参数
+        kw = None  # 假设不存在关键字参数
         # 如果fn的参数有可变的关键字参数或关键字参数
         if self._has_var_kw_arg or self._has_named_kw_args or \
                 self._required_kw_args:
@@ -142,11 +152,11 @@ class RequestHandler(object):
                         ct.startswith("multipart/form-data"):
                     # request.post方法从request body读取POST参数,
                     # 即表单信息,并包装成字典赋给kw变量
-                    params= yield from request.post()
-                    kw= dict(**params)
+                    params = yield from request.post()
+                    kw = dict(**params)
                 else:  # post的消息主体既不是json对象，又不是浏览器表单，只能报错
                     return web.HTTPBadRequest(
-                        "Unsupported Content-Type: %s" % request,content_type)
+                        "Unsupported Content-Type: %s" % request, content_type)
 
             # http method为get的处理
             if request.method == "GET":
@@ -154,7 +164,7 @@ class RequestHandler(object):
                 # 比如我百度han，得到网址为https://www.baidu.com/s?ie=UTF-8&wd=han
                 # 其中‘ie=UTF-8&wd=han’就是查询字符串
                 qs = request.query_string
-                if qs :
+                if qs:
                     kw = dict()
                     # parse.parse_qs(qs, keep_blank_values=False,
                     # strict_parsing=False)函数的作用是解析一个给定的字符串
@@ -199,7 +209,7 @@ class RequestHandler(object):
         if self._required_kw_args:
             for name in self._required_kw_args:
                 # kw必须包含全部没有默认值的关键字参数，如果发现遗漏则说明有参数没传入，报错
-                if not name in kw:
+                if name not in kw:
                     return web.HTTPBadRequest("Missing argument: %s" % name)
         # 以上过程即为从request中获得必要的参数，并组成kw
         # 以下调用handler处理，并返回response
@@ -211,7 +221,7 @@ class RequestHandler(object):
             return dict(error=e.error, data=e.data, message=e.message)
 
 
-#===============================注册路由函数和静态文件路径=========================
+# ===============================注册路由函数和静态文件路径=========================
 
 # 向app中添加静态文件目录
 def add_static(app):
@@ -226,6 +236,8 @@ def add_static(app):
 
 # 把请求处理函数注册到app，处理将针对http method和path进行
 # 下面的add_routes函数的一部分
+
+
 def add_route(app, fn):
     method = getattr(fn, "__method__", None)
     path = getattr(fn, "__route__", None)
@@ -235,12 +247,16 @@ def add_route(app, fn):
     if not asyncio.iscoroutinefunction(fn) and \
             not inspect.isgeneratorfunction(fn):
         fn = asyncio.coroutine(fn)
-    logging.info('add route %s %s => %s(%s)' % (method, path, fn.__name__, \
-        ', '.join(inspect.signature(fn).parameters.keys())))
+    logging.info(
+        'add route %s %s => %s(%s)' %
+        (method, path, fn.__name__, ', '.join(
+            inspect.signature(fn).parameters.keys())))
     # 注册request handler
     app.router.add_route(method, path, RequestHandler(app, fn))
 
 # 将handlers模块中所有请求处理函数提取出来交给add_route自动去处理
+
+
 def add_routes(app, module_name):
     # 如果handlers模块在当前目录下，传入的module_name就是handlers
     # 如果handlers模块在handler目录下没那传入的module_name就是handler.handlers
@@ -249,10 +265,13 @@ def add_routes(app, module_name):
     n = module_name.rfind('.')
     if n == (-1):
         # import sys <==>sys = __import__('sys')
-        mod = __import__(module_name, globals(), locals())  #import module_name
+        mod = __import__(
+            module_name,
+            globals(),
+            locals())  # import module_name
     else:
         # 当module_name为handler.handlers时，[n+1:]就是取.后面的部分，也就是handlers
-        name = module_name[n+1:]
+        name = module_name[n + 1:]
         # 下面的语句相当于执行了两个步骤，传入的module_name是aaa.bbb
         # 第一个步骤相当于from aaa import bbb导入模块以及子模块
         # 第二个步骤通过getattr()方法取得子模块名, 如datetime.datetime

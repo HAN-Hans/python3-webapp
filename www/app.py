@@ -19,17 +19,18 @@ from datetime import datetime
 from jinja2 import Environment, FileSystemLoader
 
 import orm
-from config import configs
+import config
 from coroweb import add_routes, add_static
 from handlers import cookie2user, COOKIE_NAME
 
 
 # logging初始化设置
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s %(message)s",
-                    datefmt="[%Y-%m-%d %H:%M:%S]",
-                    filename='/tmp/test.log',
-                    filemode='w')
+logging.basicConfig(
+    level=logging.INFO,filename='/tmp/test.log',
+    filemode='w',
+    format="%(asctime)s %(message)s",
+    datefmt="[%Y-%m-%d %H:%M:%S]",
+)
 
 
 # 这个函数的功能是初始化jinja2模板，配置jinja2的环境
@@ -72,7 +73,7 @@ async def logger_factory(app, handler):
         # 记录日志
         logging.info('Request: %s %s' % (request.method, request.path))
         # 继续处理请求
-        return (await handler(request))
+        return await handler(request)
     return logger
 
 
@@ -94,7 +95,7 @@ async def auth_factory(app, handler):
         if request.path.startswith('/manage/') and \
                 (request.__user__ is None or not request.__user__.admin):
             return web.HTTPFound('/signin')
-        return (await handler(request))
+        return await handler(request)
     return auth
 
 
@@ -116,7 +117,7 @@ async def data_factory(app, handler):
                 request.__data__ = await request.post()
                 logging.info("request form: %s" % str(request.__data__))
         # 调用传入的handler继续处理请求
-        return (await handler(request))
+        return await handler(request)
     return parse_data
 
 
@@ -151,28 +152,32 @@ async def response_factory(app, handler):
             template = r.get("__template__")
             # 若不存在对应模板,则将字典调整为json格式返回,并设置响应类型为json
             if template is None:
-                resp = web.Response(body=json.dumps(r, ensure_ascii=False,
-                                                    default=lambda o: o.__dict__).encode("utf-8"))
+                resp = web.Response(
+                    body=json.dumps(
+                        r,
+                        ensure_ascii=False,
+                        default=lambda o: o.__dict__).encode("utf-8"))
                 resp.content_type = "application/json;charset=utf-8"
                 return resp
             # 存在对应模板的,则将套用模板,用request handler的结果进行渲染
             else:
                 # 增加__user__,前端页面将依次来决定是否显示评论框
                 r["__user__"] = request.__user__
-                resp = web.Response(body=app["__templating__"].\
-                                    get_template(template).render(**r).encode("utf-8"))
+                resp = web.Response(
+                    body=app["__templating__"]. get_template(template).render(
+                        **r).encode("utf-8"))
                 resp.content_type = "text/html;charset=utf-8"
                 return resp
         # 若响应结果为整型的
         # 此时r为状态码,即404,500等
-        if isinstance(r, int) and r >= 100 and r < 600:
+        if isinstance(r, int) and 100 <= r < 600:
             return web.Response
         # 若响应结果为元组,并且长度为2
         if isinstance(r, tuple) and len(r) == 2:
             t, m = r
             # t为http状态码,m为错误描述
             # 判断t是否满足100~600的条件
-            if isinstance(t, int) and t >= 100 and t < 600:
+            if isinstance(t, int) and 100 <= t < 600:
                 # 返回状态码与错误描述
                 return web.Response(t, str(m))
         # 默认以字符串形式返回响应结果,设置类型为普通文本
@@ -200,7 +205,7 @@ def datetime_filter(t):
 # 调用asyncio实现异步IO
 async def init(loop):
     # 创建数据库连接池
-    await orm.create_pool(loop=loop, **configs.db)
+    await orm.create_pool(loop=loop, **config.db)
     # 创建web应用对象, 并传入中间件
     app = web.Application(loop=loop, middlewares=[
         logger_factory, auth_factory, response_factory])
