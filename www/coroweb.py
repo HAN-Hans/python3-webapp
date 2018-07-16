@@ -4,7 +4,7 @@
 import asyncio
 import logging
 import os
-import functools  # 高阶函数模块, 提供常用的高阶函数, 如wraps
+import functools
 import inspect  # 可以获取类或函数的类型，源码，参数信息等的模块
 from urllib import parse
 from aiohttp import web
@@ -17,27 +17,26 @@ from apis import APIError
 # 这是个三层嵌套的decorator（装饰器），目的是可以在decorator本身传入参数
 # 这个装饰器将一个函数映射为一个URL处理函数，附带了URL信息
 def get(path):
-    '''
+    """
     定义装饰器 @get（"/path")
     这个修饰器作用是给func添加两个属性__method__\__route__,
     方便在add_routes()中判断函数是否可以添加到add_route()路由的依据
-    '''
+    """
     def decorator(func):  # 传入参数是函数
         @functools.wraps(func)
         # 这个函数直接返回原始函数,wrapper.__name__ = func.__name__
         def wrapper(*args, **kw):
             return func(*args, **kw)
-        wrapper.__method__ = "GET"      # 给原始函数添加请求方法 “GET”
-        wrapper.__route__ = path        # 给原始函数添加请求路径 path
+        wrapper.__method__ = "GET"  # 给原始函数添加请求方法 “GET”
+        wrapper.__route__ = path  # 给原始函数添加请求路径 path
         return wrapper
     return decorator
 
 
-# 这样，一个函数通过@get(path)的装饰就附带了URL信息
 def post(path):
-    '''
+    """
     定义一个装饰器 @post("/path")
-    '''
+    """
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kw):
@@ -71,27 +70,24 @@ def get_named_kw_args(fn):
             args.append(name)
     return tuple(args)
 
+
 # 判断fn有没有关键词参数，如果有就输出True
-
-
 def has_named_kw_args(fn):
     params = inspect.signature(fn).parameters
     for name, param in params.items():
         if param.kind == inspect.Parameter.KEYWORD_ONLY:
             return True
 
+
 # 判断fn有没有可变的关键词参数（**），如果有就输出True
-
-
 def has_var_kw_arg(fn):
     params = inspect.signature(fn).parameters
     for name, param in params.items():
         if param.kind == inspect.Parameter.VAR_KEYWORD:
             return True
 
+
 # 判断fn的参数中有没有参数名为request的参数
-
-
 def has_request_arg(fn):
     # 这里是把之前函数的一句语句拆分为两句，拆分原因是后面要使用中间量sig
     sig = inspect.signature(fn)
@@ -137,7 +133,7 @@ class RequestHandler(object):
             if request.method == "POST":
                 # content_type是request提交的消息主体类型，没有就返回丢失消息主体类型
                 if not request.content_type:
-                    return web.HTTPBadRequest('Missing Content-Type.')
+                    return web.HTTPBadRequest(body='Missing Content-Type.')
                 # 把request.content_type转化为小写
                 ct = request.content_type.lower()
                 # application/json表示消息主体是序列化后的json字符串
@@ -145,7 +141,7 @@ class RequestHandler(object):
                     params = yield from request.json()  # 用json方法读取信息
                     # 如果读取出来的信息类型不是dict,那json对象一定有问题
                     if not isinstance(params, dict):
-                        return web.HTTPBadRequest("JSON body must be object.")
+                        return web.HTTPBadRequest(body="JSON body must be object.")
                     kw = params  # 把读取出来的dict赋值给kw
                 # 以下2种content type都表示消息主体是表单
                 elif ct.startswith("application/x-www-form-urlencode") or \
@@ -156,7 +152,8 @@ class RequestHandler(object):
                     kw = dict(**params)
                 else:  # post的消息主体既不是json对象，又不是浏览器表单，只能报错
                     return web.HTTPBadRequest(
-                        "Unsupported Content-Type: %s" % request, content_type)
+                        body="Unsupported Content-Type: %s" % request,
+                        content_type=ct)
 
             # http method为get的处理
             if request.method == "GET":
@@ -210,7 +207,7 @@ class RequestHandler(object):
             for name in self._required_kw_args:
                 # kw必须包含全部没有默认值的关键字参数，如果发现遗漏则说明有参数没传入，报错
                 if name not in kw:
-                    return web.HTTPBadRequest("Missing argument: %s" % name)
+                    return web.HTTPBadRequest(body="Missing argument: %s" % name)
         # 以上过程即为从request中获得必要的参数，并组成kw
         # 以下调用handler处理，并返回response
         logging.info("call with args: %s" % str(kw))
@@ -234,10 +231,9 @@ def add_static(app):
     app.router.add_static("/static/", path)
     logging.info("add static %s => %s" % ("/static/", path))
 
+
 # 把请求处理函数注册到app，处理将针对http method和path进行
 # 下面的add_routes函数的一部分
-
-
 def add_route(app, fn):
     method = getattr(fn, "__method__", None)
     path = getattr(fn, "__route__", None)
@@ -254,9 +250,8 @@ def add_route(app, fn):
     # 注册request handler
     app.router.add_route(method, path, RequestHandler(app, fn))
 
+
 # 将handlers模块中所有请求处理函数提取出来交给add_route自动去处理
-
-
 def add_routes(app, module_name):
     # 如果handlers模块在当前目录下，传入的module_name就是handlers
     # 如果handlers模块在handler目录下没那传入的module_name就是handler.handlers
@@ -265,10 +260,7 @@ def add_routes(app, module_name):
     n = module_name.rfind('.')
     if n == (-1):
         # import sys <==>sys = __import__('sys')
-        mod = __import__(
-            module_name,
-            globals(),
-            locals())  # import module_name
+        mod = __import__(module_name, globals(), locals())
     else:
         # 当module_name为handler.handlers时，[n+1:]就是取.后面的部分，也就是handlers
         name = module_name[n + 1:]
@@ -286,8 +278,8 @@ def add_routes(app, module_name):
         # 私有的,能引用,但不应引用;特殊的,可以直接应用,但一般有特殊用途
         if attr.startswith('_'):
             continue
-        fn = getattr(mod, attr)     # 排除私有属性后，就把属性提取出来
-        if callable(fn):            # 查看提取出来的属性是不是函数
+        fn = getattr(mod, attr)  # 排除私有属性后，就把属性提取出来
+        if callable(fn):  # 查看提取出来的属性是不是函数
             # 如果是函数，再判断是否有__method__和__route__属性
             method = getattr(fn, '__method__', None)
             path = getattr(fn, '__route__', None)

@@ -26,12 +26,14 @@ from handlers import cookie2user, COOKIE_NAME
 
 # logging初始化设置
 logging.basicConfig(
-    level=logging.INFO,filename='/tmp/test.log',
-    filemode='w',
+    level=logging.INFO,
+    # filename='./tmp/test.log',
+    # filemode='w',
     format="%(asctime)s %(message)s",
     datefmt="[%Y-%m-%d %H:%M:%S]",
 )
-
+logging.info("what out!")
+logging.warning("I told")
 
 # 这个函数的功能是初始化jinja2模板，配置jinja2的环境
 def init_jinja2(app, **kw):
@@ -39,19 +41,15 @@ def init_jinja2(app, **kw):
     # 设置解析模板需要用到的环境变量
     options = dict(
         autoescape=kw.get('autoescape', True),  # 自动转义xml/html的特殊字符
-        # 下面两句的意思是{%和%}、{{和}}中间的是python代码而不是html
-        block_start_string=kw.get('block_start_string', '{%'),
-        block_end_string=kw.get('block_end_string', '%}'),
-        variable_start_string=kw.get('variable_start_string', '{{'),
-        variable_end_string=kw.get('variable_end_string', '}}'),
+        # block_start_string=kw.get('block_start_string', '{%'),
+        # block_end_string=kw.get('block_end_string', '%}'),
+        # variable_start_string=kw.get('variable_start_string', '{{'),
+        # variable_end_string=kw.get('variable_end_string', '}}'),
         auto_reload=kw.get('auto_reload', True)
     )
     path = kw.get('path', None)  # 从kw中获取模板路径，如果没有传入这个参数则默认为None
     # 如果path为None，则将当前文件所在目录下的templates目录设为模板文件目录
     if path is None:
-        # os.path.abspath(__file__)取当前文件的绝对目录
-        # os.path.dirname()取绝对目录的路径部分
-        # os.path.join(path， name)把目录和名字组合
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             'templates')
     logging.info('set jinja2 template path: %s' % path)
@@ -179,7 +177,7 @@ async def response_factory(app, handler):
             # 判断t是否满足100~600的条件
             if isinstance(t, int) and 100 <= t < 600:
                 # 返回状态码与错误描述
-                return web.Response(t, str(m))
+                return web.Response(status=t, body=str(m))
         # 默认以字符串形式返回响应结果,设置类型为普通文本
         resp = web.Response(body=str(r).encode("utf-8"))
         resp.content_type = "text/plain;charset=utf-8"
@@ -208,7 +206,7 @@ async def init(loop):
     await orm.create_pool(loop=loop, **config.db)
     # 创建web应用对象, 并传入中间件
     app = web.Application(loop=loop, middlewares=[
-        logger_factory, auth_factory, response_factory])
+        logger_factory, auth_factory, data_factory, response_factory])
     # 初始化jinja2模板，并传入时间过滤器
     init_jinja2(app, filters=dict(datetime=datetime_filter))
     # 下面这两个函数在coroweb模块中
